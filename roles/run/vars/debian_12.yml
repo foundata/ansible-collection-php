@@ -1,0 +1,9 @@
+# Internal role variables specific to: Debian 12 (distribution_major_version)
+#
+# Only values specific to the platform and its functionality should be included
+# here. Variables in this file override those defined in vars/debian.yml.
+
+---
+
+# Debian 12 (Bookworm) ships PHP 8.2 as the default in main repos.
+__run_php_version_distribution_default: "8.2"

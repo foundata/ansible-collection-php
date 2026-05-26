@@ -1,0 +1,10 @@
+# Internal role variables specific to: Ubuntu 26 (distribution_major_version)
+#
+# Only values specific to the platform and its functionality should be included
+# here. Variables in this file override those defined in vars/debian.yml
+# (Ubuntu's os_family is "Debian").
+
+---
+
+# Ubuntu 26.04 LTS (Resolute Raccoon) ships PHP 8.5 in main universe.
+__run_php_version_distribution_default: "8.5"

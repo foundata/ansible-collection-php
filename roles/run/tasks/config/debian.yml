@@ -1,0 +1,72 @@
+# Configuration: Tasks specific to: Debian (os_family or distribution)
+#
+# Only tasks specific to the platform and its functionality should be included
+# here. Tasks in this file will be executed before those defined in
+# config/default.yml.
+
+---
+
+# Best-effort disabling of unmanaged extension activation symlinks.
+#
+# On Debian-like platforms, distribution packages install the canonical extension
+# .ini file into "/etc/php/<ver>/mods-available/<ext>.ini" and create activation
+# symlinks of the form "/etc/php/<ver>/<sapi>/conf.d/NN-<ext>.ini"
+# (priority-prefixed, where NN is "10" for early-loading core extensions and
+# "20" for the rest).
+#
+# When run_php_extensions_disable_unmanaged is true, the role removes those
+# activation symlinks from the selected SAPIs' conf.d/ directories for any
+# extension that is NOT in run_php_extensions_enabled. The canonical files in
+# mods-available/ are left untouched, so a later "phpenmod <ext>" (or adding the
+# extension back to the list) re-creates the symlink and re-activates
+# the extension.
+#
+# Files matching the role's own managed pattern (99-managed*.ini) are kept;
+# regular non-symlink files are also kept (only distribution-style activation
+# symlinks are touched).
+
+- name: "Config | Debian | Discover existing extension activation symlinks per selected SAPI"
+  ansible.builtin.find:
+    paths: "{{ __run_php_disable_unmanaged_target['dir'] }}"
+    patterns: '^[0-9]+-.+\.ini$'
+    use_regex: true
+    file_type: "link"
+  register: "__run_php_disable_unmanaged_existing"
+  loop: >-
+    {{
+      ([{'dir': __run_php_config_ini_fpm_dir_path}] if __run_php_fpm_enabled else [])
+      + ([{'dir': __run_php_config_ini_cli_dir_path}] if __run_php_cli_enabled else [])
+    }}
+  loop_control:
+    loop_var: "__run_php_disable_unmanaged_target"
+    label: "{{ __run_php_disable_unmanaged_target['dir'] }}"
+  when:
+    - run_php_extensions_disable_unmanaged
+
+
+- name: "Config | Debian | Remove activation symlinks for extensions not in run_php_extensions_enabled"
+  ansible.builtin.file:
+    path: "{{ item['path'] }}"
+    state: "absent"
+  vars:
+    # Extract extension short name from a filename like `20-pgsql.ini`.
+    __run_php_link_extension: >-
+      {{
+        item['path']
+        | ansible.builtin.basename
+        | ansible.builtin.regex_replace('^[0-9]+-(.+)\.ini$', '\1')
+      }}
+  loop: >-
+    {{
+      __run_php_disable_unmanaged_existing['results']
+      | ansible.builtin.default([])
+      | ansible.builtin.map(attribute='files')
+      | ansible.builtin.flatten
+    }}
+  loop_control:
+    label: "{{ item['path'] }}"
+  when:
+    - run_php_extensions_disable_unmanaged
+    - __run_php_link_extension not in run_php_extensions_enabled
+  notify:
+    - "Handlers | PHP-FPM service reload"

@@ -2,4 +2,21 @@
 
 ---
 
-# none right now
+- name: "Handlers | PHP-FPM service restart"
+  ansible.builtin.service:
+    name: "{{ __run_php_fpm_service_name }}"
+    state: "restarted"
+  when:
+    - __run_php_fpm_enabled
+    - run_php_fpm_service_state != 'unmanaged'
+    - (__run_php_fpm_service_name | ansible.builtin.length) > 0
+
+
+- name: "Handlers | PHP-FPM service reload"
+  ansible.builtin.service:
+    name: "{{ __run_php_fpm_service_name }}"
+    state: "reloaded"
+  when:
+    - __run_php_fpm_enabled
+    - run_php_fpm_service_state != 'unmanaged'
+    - (__run_php_fpm_service_name | ansible.builtin.length) > 0

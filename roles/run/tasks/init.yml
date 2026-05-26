@@ -127,7 +127,167 @@
   loop: "{{ __run_php_platform_filenames_most_specific_last }}"
 
 
-
 ## php specific
 
-# none right now
+
+- name: "Init | Assert: forbidden SAPI values are not in run_php_sapis"
+  ansible.builtin.assert:
+    that:
+      - (run_php_sapis | ansible.builtin.intersect(__run_php_sapis_forbidden) | ansible.builtin.length) == 0
+    fail_msg: >-
+      run_php_sapis contains a SAPI that is intentionally not supported by this role:
+      {{ run_php_sapis | ansible.builtin.intersect(__run_php_sapis_forbidden) | ansible.builtin.join(', ') }}.
+      mod_php (apache2handler) is not thread-safe and unavailable on RHEL 9+;
+      classic CGI is a slower legacy SAPI that was superseded by FPM long ago.
+      Use 'fpm' (with a web server proxying via FastCGI) and / or 'cli' instead.
+
+
+- name: "Init | Assert: distribution-default PHP version is known for this platform"
+  ansible.builtin.assert:
+    that:
+      - (__run_php_version_distribution_default | ansible.builtin.length) > 0
+    fail_msg: >-
+      No distribution-default PHP version stream is defined for
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+      in vars/. The role cannot resolve run_php_version="default" on this platform.
+      Either pin run_php_version to a concrete value (e.g. "8.3") or extend the role's
+      platform vars to cover this distribution and version.
+  when:
+    - run_php_version == 'default'
+
+
+- name: "Init | Assert: every entry in run_php_extensions_enabled is lowercase ([a-z0-9_]+)"
+  ansible.builtin.assert:
+    that:
+      - run_php_extensions_enabled | ansible.builtin.reject('match', '^[a-z0-9_]+$') | ansible.builtin.list | ansible.builtin.length == 0
+    fail_msg: >-
+      run_php_extensions_enabled contains entries that do not match [a-z0-9_]+:
+      {{ run_php_extensions_enabled | ansible.builtin.reject('match', '^[a-z0-9_]+$') | ansible.builtin.list | ansible.builtin.join(', ') }}.
+      PHP extension short names are lowercase. Capitalised historical names
+      (Core, PDO, Reflection, SPL, Phar) must be written lowercase here.
+
+
+- name: "Init | Assert: every entry in run_php_extensions_enabled is known to the role"
+  ansible.builtin.assert:
+    that:
+      - __run_php_extensions_unknown | ansible.builtin.length == 0
+    fail_msg: >-
+      run_php_extensions_enabled contains extensions this role does not know about
+      on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}:
+      {{ __run_php_extensions_unknown | ansible.builtin.join(', ') }}.
+      Known extensions on this platform are:
+      {{ __run_php_extensions_known | ansible.builtin.sort | ansible.builtin.join(', ') }}.
+  vars:
+    __run_php_extensions_known: >-
+      {{
+        (__run_php_extensions_map_resources.keys() | ansible.builtin.list)
+        + __run_php_extensions_builtin
+      }}
+    __run_php_extensions_unknown: >-
+      {{
+        run_php_extensions_enabled
+        | ansible.builtin.reject('in', __run_php_extensions_known)
+        | ansible.builtin.list
+      }}
+
+
+- name: "Init | Assert: per-SAPI INI scopes are only used on platforms that support them"
+  ansible.builtin.assert:
+    that:
+      - (run_php_settings['fpm'] | ansible.builtin.default({}) | ansible.builtin.length) == 0
+      - (run_php_settings['cli'] | ansible.builtin.default({}) | ansible.builtin.length) == 0
+      - (run_php_extension_settings['fpm'] | ansible.builtin.default({}) | ansible.builtin.length) == 0
+      - (run_php_extension_settings['cli'] | ansible.builtin.default({}) | ansible.builtin.length) == 0
+    fail_msg: >-
+      Per-SAPI INI scopes (run_php_settings.fpm, run_php_settings.cli,
+      run_php_extension_settings.fpm, run_php_extension_settings.cli) cannot be
+      represented on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+      because the platform uses a single shared INI scan directory.
+      Restructure the offending settings into the 'shared' scope, or use
+      run_php_fpm_pool_defaults / per-pool php_admin_value / php_admin_flag
+      inside run_php_fpm_pools for FPM-only directives (those stay portable).
+  when:
+    - not __run_php_has_per_sapi_ini
+
+
+- name: "Init | Assert: every extension name in run_php_extension_settings is known"
+  ansible.builtin.assert:
+    that:
+      - __run_php_ext_settings_unknown | ansible.builtin.length == 0
+    fail_msg: >-
+      run_php_extension_settings references extensions this role does not know about
+      on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}:
+      {{ __run_php_ext_settings_unknown | ansible.builtin.join(', ') }}.
+      Known extensions on this platform are:
+      {{ __run_php_extensions_known | ansible.builtin.sort | ansible.builtin.join(', ') }}.
+  vars:
+    __run_php_extensions_known: >-
+      {{
+        (__run_php_extensions_map_resources.keys() | ansible.builtin.list)
+        + __run_php_extensions_builtin
+      }}
+    __run_php_ext_settings_referenced: >-
+      {{
+        ((run_php_extension_settings['shared'] | ansible.builtin.default({})).keys() | ansible.builtin.list)
+        + ((run_php_extension_settings['fpm']    | ansible.builtin.default({})).keys() | ansible.builtin.list)
+        + ((run_php_extension_settings['cli']    | ansible.builtin.default({})).keys() | ansible.builtin.list)
+      }}
+    __run_php_ext_settings_unknown: >-
+      {{
+        __run_php_ext_settings_referenced
+        | ansible.builtin.reject('in', __run_php_extensions_known)
+        | ansible.builtin.list
+        | ansible.builtin.unique
+      }}
+
+
+- name: "Init | Notify: FPM-only variables are set but 'fpm' is not in run_php_sapis (they will be ignored)"
+  ansible.builtin.debug:
+    msg: >-
+      The following FPM-only variables are non-empty but 'fpm' is not in run_php_sapis.
+      They will be ignored:
+      {{ __run_php_fpm_vars_set | ansible.builtin.join(', ') }}.
+  vars:
+    __run_php_fpm_vars_set: >-
+      {{
+        (['run_php_fpm_pool_defaults']        if (run_php_fpm_pool_defaults    | ansible.builtin.length) > 0 else [])
+        + (['run_php_fpm_pools']              if (run_php_fpm_pools            | ansible.builtin.length) > 0 else [])
+        + (['run_php_fpm_service_settings']   if (run_php_fpm_service_settings | ansible.builtin.length) > 0 else [])
+      }}
+  when:
+    - not __run_php_fpm_enabled
+    - (__run_php_fpm_vars_set | ansible.builtin.length) > 0
+
+
+- name: "Init | Notify: run_php_extension_settings references extensions not in run_php_extensions_enabled (they will be skipped)"
+  ansible.builtin.debug:
+    msg: >-
+      The following extension setting entries reference extensions that are NOT in
+      run_php_extensions_enabled and will be skipped on this run:
+      {{ __run_php_ext_settings_referenced_extra | ansible.builtin.join(', ') }}.
+  vars:
+    __run_php_ext_settings_referenced: >-
+      {{
+        ((run_php_extension_settings['shared'] | ansible.builtin.default({})).keys() | ansible.builtin.list)
+        + ((run_php_extension_settings['fpm']    | ansible.builtin.default({})).keys() | ansible.builtin.list)
+        + ((run_php_extension_settings['cli']    | ansible.builtin.default({})).keys() | ansible.builtin.list)
+      }}
+    __run_php_ext_settings_referenced_extra: >-
+      {{
+        __run_php_ext_settings_referenced
+        | ansible.builtin.reject('in', run_php_extensions_enabled)
+        | ansible.builtin.list
+        | ansible.builtin.unique
+      }}
+  when:
+    - (__run_php_ext_settings_referenced_extra | ansible.builtin.length) > 0
+
+
+- name: "Init | Show resolved PHP version stream and effective package prefix"
+  ansible.builtin.debug:
+    msg: >-
+      run_php_version="{{ run_php_version }}" resolved to
+      __run_php_version_effective="{{ __run_php_version_effective }}"
+      with __run_php_package_prefix="{{ __run_php_package_prefix }}"
+      on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}.
+    verbosity: 1

@@ -1,0 +1,62 @@
+# Install: Tasks specific to: RedHat 9 (os_family or distribution;
+# distribution_major_version)
+#
+# Only tasks specific to the platform and its functionality should be included
+# here. Tasks in this file will be executed before those defined in
+# install/default.yml.
+
+---
+
+# RHEL 9 ships PHP 8.0 in AppStream and offers parallel streams 8.1, 8.2, 8.3
+# via the php DNF module. When the user pins to a non-default PHP version
+# stream on EL9, we must enable the matching module stream before the regular
+# package install task runs (otherwise "dnf install php-fpm" resolves to 8.0).
+#
+# On EL10 (and Fedora) the php module concept is deprecated / not used:
+# alternative versions ship as parallel "php8.4-*" package families and are
+# selected via __run_php_package_prefix instead. No module action is needed
+# there.
+
+- name: "Setup | Install | RedHat | Inspect currently enabled php DNF module stream"
+  ansible.builtin.command:
+    cmd: "dnf -q module list --enabled php"
+  register: "__run_php_dnf_module_enabled"
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  when:
+    - run_php_version != 'default'
+
+
+- name: "Setup | Install | RedHat | Extract currently enabled php module stream version"
+  ansible.builtin.set_fact:
+    __run_php_dnf_module_current_stream: >-
+      {{
+        ((__run_php_dnf_module_enabled['stdout'] | ansible.builtin.default(''))
+         | ansible.builtin.regex_search('(?m)^php\s+([0-9]+\.[0-9]+)', '\1'))
+        | ansible.builtin.default([])
+        | ansible.builtin.first
+        | ansible.builtin.default('')
+      }}
+  when:
+    - ansible_facts['distribution_major_version'] == '9'
+    - run_php_version != 'default'
+
+
+- name: "Setup | Install | RedHat | Reset php DNF module if a different stream is currently enabled"
+  ansible.builtin.command:
+    cmd: "dnf -y module reset php"
+  changed_when: true
+  when:
+    - run_php_version != 'default'
+    - (__run_php_dnf_module_current_stream | ansible.builtin.length) > 0
+    - __run_php_dnf_module_current_stream != __run_php_version_effective
+
+
+- name: "Setup | Install | RedHat | Enable php DNF module stream for pinned version"
+  ansible.builtin.command:
+    cmd: "dnf -y module enable php:{{ __run_php_version_effective }}"
+  changed_when: true
+  when:
+    - run_php_version != 'default'
+    - __run_php_dnf_module_current_stream != __run_php_version_effective

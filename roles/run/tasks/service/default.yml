@@ -2,4 +2,17 @@
 
 ---
 
-# none right now
+# PHP-FPM is the only PHP SAPI with a long-running daemon and therefore the
+# only SAPI with a service state to manage. CLI has no service component. If
+# "fpm" is not in "run_php_sapis", the service tasks below do nothing (the
+# init phase has already emitted a notice if the user nonetheless set
+# "run_php_fpm_service_state").
+
+- name: "Service | Default | Ensure service state: {{ __run_php_fpm_service_name }}"
+  ansible.builtin.service:
+    name: "{{ __run_nginx_nginx_servicename }}"
+    state: "{{ 'started' if run_php_fpm_service_state in ['enabled', 'running'] else 'stopped' if run_php_fpm_service_state == 'disabled' }}"
+    enabled: "{{ true if run_php_fpm_service_state == 'enabled' else false if run_php_fpm_service_state in ['disabled', 'running'] }}"
+  when:
+    - __run_php_fpm_enabled
+    - run_php_fpm_service_state != 'unmanaged'

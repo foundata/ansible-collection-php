@@ -2,7 +2,240 @@
 #
 # Only values specific to the platform and its functionality should be included
 # here. Variables in this file override those defined in vars/main.yml.
+#
+# This file applies to the whole RHEL family (RedHat, AlmaLinux, Rocky,
+# CentOS Stream) AND to Fedora — all of them have os_family "RedHat". Fedora
+# version defaults are added to the lookup table below so a separate
+# fedora.yml is not strictly required.
 
 ---
 
-# none right now
+# Shared INI scan directory (RHEL/Fedora has no per-SAPI INI dirs).
+__run_php_has_per_sapi_ini: false
+
+
+# Distribution-default PHP version stream. RHEL-family distributions vary in
+# their distribution name (RedHat, AlmaLinux, Rocky, CentOS) but share the
+# same packaging layout per major version, so a single dict-driven lookup
+# works for all of them. Same for Fedora.
+#
+# Notes:
+#   - RHEL 9 / AlmaLinux 9 / Rocky 9 / CentOS Stream 9: the `php-*` packages
+#     in AppStream are 8.0 by default. Module streams `php:8.1`, `php:8.2`,
+#     `php:8.3` are available and can be enabled with
+#     `dnf module enable php:<ver>` (handled by the per-platform install
+#     task for RHEL 9, see tasks/setup/install/redhat_9.yml). Whatever stream
+#     is active resolves through the same unversioned `php-*` package names,
+#     so the value here is informational - the role only uses it for path
+#     and service-name resolution (both of which are stream-independent on
+#     RHEL family).
+#   - RHEL 10 / AlmaLinux 10 / Rocky 10 / CentOS Stream 10: `php-*` is 8.3,
+#     `php8.4-*` is available as a parallel package family. A pinned
+#     `run_php_version: "8.4"` switches the prefix to `php8.4-`.
+#   - Fedora 43: PHP 8.4. Fedora 44: PHP 8.5.
+__run_php_default_version_table:
+  RedHat:
+    "9": "8.0"
+    "10": "8.3"
+  AlmaLinux:
+    "9": "8.0"
+    "10": "8.3"
+  Rocky:
+    "9": "8.0"
+    "10": "8.3"
+  CentOS:
+    "9": "8.0"
+    "10": "8.3"
+  Fedora:
+    "43": "8.4"
+    "44": "8.5"
+
+__run_php_version_distribution_default: >-
+  {{
+    (__run_php_default_version_table[ansible_facts['distribution']]
+     | ansible.builtin.default({}))[ansible_facts['distribution_major_version']]
+    | ansible.builtin.default('')
+  }}
+
+
+# Package name prefix. RHEL family uses unversioned `php-*` by default. When
+# the user pins to a version that is shipped as a parallel `phoNN-*` family
+# (e.g. `php8.4-*` on RHEL 10), the prefix switches accordingly. The
+# heuristic: if the effective version matches the distribution default, use
+# the unversioned prefix; otherwise use the `php<flatver>-` prefix
+# (`8.4` -> `php84-` style is NOT what RHEL uses; RHEL uses `php8.4-` with
+# the dot intact).
+__run_php_package_prefix: >-
+  {{
+    'php-'
+    if __run_php_version_effective == __run_php_version_distribution_default
+    else 'php' ~ __run_php_version_effective ~ '-'
+  }}
+
+
+# SAPI -> package mapping.
+__run_php_sapi_packages_map:
+  fpm:
+    - "{{ __run_php_package_prefix }}fpm"
+  cli:
+    - "{{ __run_php_package_prefix }}cli"
+
+
+# Always-on / built-in extensions on RHEL family. These ship with the
+# `php-common` package or are PHP-core built-ins.
+__run_php_extensions_builtin:
+  - "core"
+  - "date"
+  - "hash"
+  - "json"
+  - "pcre"
+  - "random"
+  - "reflection"
+  - "spl"
+  - "standard"
+  - "openssl"
+  - "sodium"
+  - "pdo"
+  - "phar"
+  # The following ship as drop-in INIs in /etc/php.d/ via the `php-common`
+  # package on a fresh install (verified on AlmaLinux 9 / 10):
+  - "bz2"
+  - "calendar"
+  - "ctype"
+  - "curl"
+  - "exif"
+  - "fileinfo"
+  - "ftp"
+  - "gettext"
+  - "iconv"
+  - "tokenizer"
+
+
+# Extension -> packages mapping. RHEL family uses unversioned (or
+# `php<ver>-`) prefixed packages. PECL extensions live under
+# `php-pecl-<name>` (with version suffix for some, e.g. `php-pecl-redis6`,
+# `php-pecl-xdebug3`).
+#
+# Notes on RHEL packaging:
+#   - php-mysqlnd ships `mysqli` and `pdo_mysql`.
+#   - php-pgsql ships `pgsql` and `pdo_pgsql`.
+#   - php-pdo is shared infrastructure (already in builtins above).
+#   - php-xml ships `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `dom`, `xsl`.
+#   - PECL `apcu` / `redis` / `xdebug` carry version suffixes in their
+#     package names on EL10; on EL9 / Fedora the suffix-less names may also
+#     exist. We list the suffixed names here as the EL10 baseline and rely on
+#     the package manager to pick the right one from the configured repos.
+__run_php_extensions_map_resources:
+  # --- Database ---
+  pgsql:
+    packages:
+      - "{{ __run_php_package_prefix }}pgsql"
+  pdo_pgsql:
+    packages:
+      - "{{ __run_php_package_prefix }}pgsql"
+  mysqli:
+    packages:
+      - "{{ __run_php_package_prefix }}mysqlnd"
+  pdo_mysql:
+    packages:
+      - "{{ __run_php_package_prefix }}mysqlnd"
+  # sqlite3 / pdo_sqlite ship with the base php package on RHEL family
+  # (no separate package). Placed in builtins via the per-version files if
+  # needed; left here as a deliberate gap so the user gets a hard fail if
+  # they typo something far worse.
+  odbc:
+    packages:
+      - "{{ __run_php_package_prefix }}odbc"
+  pdo_odbc:
+    packages:
+      - "{{ __run_php_package_prefix }}odbc"
+  # --- Networking ---
+  ldap:
+    packages:
+      - "{{ __run_php_package_prefix }}ldap"
+  soap:
+    packages:
+      - "{{ __run_php_package_prefix }}soap"
+  snmp:
+    packages:
+      - "{{ __run_php_package_prefix }}snmp"
+  sockets:
+    packages:
+      - "{{ __run_php_package_prefix }}sockets"
+  # --- Text and internationalisation ---
+  mbstring:
+    packages:
+      - "{{ __run_php_package_prefix }}mbstring"
+  intl:
+    packages:
+      - "{{ __run_php_package_prefix }}intl"
+  # --- Data formats ---
+  xml:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  simplexml:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  xmlreader:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  xmlwriter:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  dom:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  xsl:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  zip:
+    packages:
+      - "{{ __run_php_package_prefix }}pecl-zip"
+  # --- Graphics ---
+  gd:
+    packages:
+      - "{{ __run_php_package_prefix }}gd"
+  imagick:
+    packages:
+      - "{{ __run_php_package_prefix }}pecl-imagick"
+  # --- Caching and performance ---
+  opcache:
+    packages:
+      - "{{ __run_php_package_prefix }}opcache"
+  apcu:
+    packages:
+      - "{{ __run_php_package_prefix }}pecl-apcu"
+  redis:
+    packages:
+      - "{{ __run_php_package_prefix }}pecl-redis6"
+  memcached:
+    packages:
+      - "{{ __run_php_package_prefix }}pecl-memcached"
+  # --- Debug and profiling ---
+  xdebug:
+    packages:
+      - "{{ __run_php_package_prefix }}pecl-xdebug3"
+  # --- Crypto and math ---
+  bcmath:
+    packages:
+      - "{{ __run_php_package_prefix }}bcmath"
+  gmp:
+    packages:
+      - "{{ __run_php_package_prefix }}gmp"
+  # --- System ---
+  pcntl:
+    packages:
+      - "{{ __run_php_package_prefix }}process"
+  posix:
+    packages:
+      - "{{ __run_php_package_prefix }}process"
+
+
+# Configuration paths. RHEL family has a single shared INI scan directory.
+__run_php_config_ini_shared_dir_path: "/etc/php.d"
+__run_php_config_fpm_main_file_path: "/etc/php-fpm.conf"
+__run_php_config_fpm_pool_dir_path: "/etc/php-fpm.d"
+
+
+# PHP-FPM service name. Unversioned on RHEL family.
+__run_php_fpm_service_name: "php-fpm.service"

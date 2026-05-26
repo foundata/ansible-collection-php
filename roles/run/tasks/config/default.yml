@@ -2,4 +2,320 @@
 
 ---
 
-# none right now
+# Compute the list of (directory, sapi) pairs that the role's INI drop-ins
+# should be rendered into.
+#
+#   - On Debian-like platforms each selected SAPI has its own conf.d/, so we
+#     get one target per selected SAPI; the merge of run_php_settings.shared
+#     and run_php_settings.<sapi> goes into that target.
+#   - On shared-dir platforms (RHEL-like, SUSE-like) there is exactly one
+#     target (the shared INI scan directory); only run_php_settings.shared
+#     contributes - the per-SAPI scopes are already rejected by init.yml on
+#     those platforms.
+
+- name: "Config | Default | Compute effective INI render targets"
+  ansible.builtin.set_fact:
+    __run_php_ini_targets: >-
+      {{
+        (([{'dir': __run_php_config_ini_fpm_dir_path, 'sapi': 'fpm'}]
+            if (__run_php_has_per_sapi_ini and __run_php_fpm_enabled) else [])
+         + ([{'dir': __run_php_config_ini_cli_dir_path, 'sapi': 'cli'}]
+            if (__run_php_has_per_sapi_ini and __run_php_cli_enabled) else [])
+         + ([{'dir': __run_php_config_ini_shared_dir_path, 'sapi': 'shared'}]
+            if (not __run_php_has_per_sapi_ini) else []))
+      }}
+
+
+# Build per-target merged INI scope (shared + per-SAPI on Debian-like; just
+# shared on shared-dir platforms). Implemented with the accumulator pattern
+# because Ansible's Jinja does not support list comprehensions.
+- name: "Config | Default | Initialize INI render target accumulator"
+  ansible.builtin.set_fact:
+    __run_php_ini_render_targets: []
+
+
+- name: "Config | Default | Compute merged INI scope per target"
+  ansible.builtin.set_fact:
+    __run_php_ini_render_targets: >-
+      {{
+        __run_php_ini_render_targets
+        + [{
+            'dir': __run_php_t['dir'],
+            'sapi': __run_php_t['sapi'],
+            'scope': (
+              (run_php_settings['shared'] | ansible.builtin.default({}))
+              | ansible.builtin.combine(
+                  (run_php_settings[__run_php_t['sapi']] | ansible.builtin.default({}))
+                    if __run_php_t['sapi'] in ['fpm', 'cli'] else {},
+                  recursive=true
+                )
+            ),
+        }]
+      }}
+  loop: "{{ __run_php_ini_targets }}"
+  loop_control:
+    loop_var: "__run_php_t"
+    label: "{{ __run_php_t['dir'] }}"
+
+
+- name: "Config | Default | Render shared/per-SAPI INI drop-in per target"
+  ansible.builtin.template:
+    src: "ini_dropin.ini.j2"
+    dest: "{{ __run_php_ini_render_target['dir'] }}/{{ __run_php_config_ini_dropin_filename }}"
+    owner: "{{ __run_php_config_file_owner }}"
+    group: "{{ __run_php_config_file_group }}"
+    mode: "{{ __run_php_config_file_mode }}"
+  vars:
+    __run_php_render_scope: "{{ __run_php_ini_render_target['scope'] }}"
+  when:
+    - (__run_php_ini_render_target['scope'] | ansible.builtin.length) > 0
+  loop: "{{ __run_php_ini_render_targets }}"
+  loop_control:
+    loop_var: "__run_php_ini_render_target"
+    label: "{{ __run_php_ini_render_target['dir'] }}"
+  notify:
+    - "Handlers | PHP-FPM service reload"
+
+
+- name: "Config | Default | Remove shared/per-SAPI INI drop-in per target when scope is empty"
+  ansible.builtin.file:
+    path: "{{ __run_php_ini_render_target['dir'] }}/{{ __run_php_config_ini_dropin_filename }}"
+    state: "absent"
+  when:
+    - (__run_php_ini_render_target['scope'] | ansible.builtin.length) == 0
+  loop: "{{ __run_php_ini_render_targets }}"
+  loop_control:
+    loop_var: "__run_php_ini_render_target"
+    label: "{{ __run_php_ini_render_target['dir'] }}"
+  notify:
+    - "Handlers | PHP-FPM service reload"
+
+
+# Per-extension INI drop-ins.
+#
+# Build a flat list of (dir, extension, merged_directives) triples by crossing
+# every INI target with every enabled extension. Empty triples (no settings
+# for this target × extension combination) are kept here and skipped at
+# render time; they are also used to drive the "remove stale files" logic.
+
+- name: "Config | Default | Initialize per-extension INI render triple accumulator"
+  ansible.builtin.set_fact:
+    __run_php_ext_render_triples: []
+
+
+- name: "Config | Default | Compute per-extension INI render triples"
+  ansible.builtin.set_fact:
+    __run_php_ext_render_triples: >-
+      {{
+        __run_php_ext_render_triples
+        + [{
+            'dir': __run_php_pair[0]['dir'],
+            'sapi': __run_php_pair[0]['sapi'],
+            'extension': __run_php_pair[1],
+            'directives': (
+              ((run_php_extension_settings['shared']
+                | ansible.builtin.default({}))[__run_php_pair[1]]
+                | ansible.builtin.default({}))
+              | ansible.builtin.combine(
+                  ((run_php_extension_settings[__run_php_pair[0]['sapi']]
+                    | ansible.builtin.default({}))[__run_php_pair[1]]
+                    | ansible.builtin.default({}))
+                    if __run_php_pair[0]['sapi'] in ['fpm', 'cli'] else {},
+                  recursive=true
+                )
+            ),
+        }]
+      }}
+  loop: "{{ __run_php_ini_targets | ansible.builtin.product(run_php_extensions_enabled) | ansible.builtin.list }}"
+  loop_control:
+    loop_var: "__run_php_pair"
+    label: "{{ __run_php_pair[0]['dir'] }} / {{ __run_php_pair[1] }}"
+
+
+- name: "Config | Default | Initialize managed per-extension INI paths accumulator"
+  ansible.builtin.set_fact:
+    __run_php_ext_ini_managed_paths: []
+
+
+- name: "Config | Default | Compute managed per-extension INI paths"
+  ansible.builtin.set_fact:
+    __run_php_ext_ini_managed_paths: >-
+      {{
+        __run_php_ext_ini_managed_paths
+        + [(__run_php_t['dir'] ~ '/' ~ (
+              __run_php_config_ini_extension_dropin_filename_format
+              | ansible.builtin.regex_replace('\{extension\}', __run_php_t['extension'])
+            ))]
+      }}
+  when:
+    - (__run_php_t['directives'] | ansible.builtin.length) > 0
+  loop: "{{ __run_php_ext_render_triples }}"
+  loop_control:
+    loop_var: "__run_php_t"
+    label: "{{ __run_php_t['dir'] }} / {{ __run_php_t['extension'] }}"
+
+
+- name: "Config | Default | Render per-extension INI drop-ins"
+  ansible.builtin.template:
+    src: "extension_ini_dropin.ini.j2"
+    dest: >-
+      {{ __run_php_ext_render_triple['dir'] }}/{{
+        __run_php_config_ini_extension_dropin_filename_format
+        | ansible.builtin.regex_replace('\{extension\}', __run_php_ext_render_triple['extension'])
+      }}
+    owner: "{{ __run_php_config_file_owner }}"
+    group: "{{ __run_php_config_file_group }}"
+    mode: "{{ __run_php_config_file_mode }}"
+  vars:
+    __run_php_render_extension: "{{ __run_php_ext_render_triple['extension'] }}"
+    __run_php_render_directives: "{{ __run_php_ext_render_triple['directives'] }}"
+  when:
+    - (__run_php_ext_render_triple['directives'] | ansible.builtin.length) > 0
+  loop: "{{ __run_php_ext_render_triples }}"
+  loop_control:
+    loop_var: "__run_php_ext_render_triple"
+    label: "{{ __run_php_ext_render_triple['dir'] }} / {{ __run_php_ext_render_triple['extension'] }}"
+  notify:
+    - "Handlers | PHP-FPM service reload"
+
+
+# Stale per-extension INI cleanup: any file in the target directories whose
+# name matches the role's managed filename pattern but which is NOT in the
+# computed `__run_php_ext_ini_managed_paths` list gets removed. This handles
+# extensions removed from `run_php_extensions_enabled`, settings emptied for
+# a specific extension, and SAPIs removed from `run_php_sapis`. Package-owned
+# files in the same directory are untouched (they don't match the pattern).
+- name: "Config | Default | Discover existing per-extension INI drop-ins per target"
+  ansible.builtin.find:
+    paths: "{{ __run_php_ini_target['dir'] }}"
+    patterns: >-
+      {{
+        __run_php_config_ini_extension_dropin_filename_format
+        | ansible.builtin.regex_replace('\{extension\}', '*')
+      }}
+    file_type: "file"
+  register: "__run_php_ext_ini_existing"
+  loop: "{{ __run_php_ini_targets }}"
+  loop_control:
+    loop_var: "__run_php_ini_target"
+    label: "{{ __run_php_ini_target['dir'] }}"
+
+
+- name: "Config | Default | Remove stale per-extension INI drop-ins"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  loop: >-
+    {{
+      __run_php_ext_ini_existing['results']
+      | ansible.builtin.map(attribute='files')
+      | ansible.builtin.flatten
+      | ansible.builtin.map(attribute='path')
+      | ansible.builtin.reject('in', __run_php_ext_ini_managed_paths)
+      | ansible.builtin.list
+    }}
+  notify:
+    - "Handlers | PHP-FPM service reload"
+
+
+# PHP-FPM [global] directives via blockinfile.
+#
+# The managed block is inserted right after the existing "[global]" line in
+# the distribution's php-fpm.conf so directives extend (and INI-last-wins
+# override) the stock section without us re-declaring the section header.
+
+- name: "Config | Default | Manage [global] block inside php-fpm.conf"
+  ansible.builtin.blockinfile:
+    path: "{{ __run_php_config_fpm_main_file_path }}"
+    marker: "; ### {mark} ANSIBLE MANAGED BLOCK ###"
+    insertafter: '^\[global\]'
+    block: |-
+      {% for name, value in run_php_fpm_service_settings['global'].items() -%}
+      {{ name }} = {{ 'on' if (value is sameas true) else ('off' if (value is sameas false) else value) }}
+      {% endfor -%}
+    state: >-
+      {{
+        'present'
+        if ((run_php_fpm_service_settings['global'] | ansible.builtin.default({})) | ansible.builtin.length) > 0
+        else 'absent'
+      }}
+  when:
+    - __run_php_fpm_enabled
+  notify:
+    - "Handlers | PHP-FPM service restart"
+
+
+# PHP-FPM pool files.
+
+- name: "Config | Default | Render PHP-FPM pool files (state: present)"
+  ansible.builtin.template:
+    src: "fpm_pool.conf.j2"
+    dest: "{{ __run_php_config_fpm_pool_dir_path }}/{{ __run_php_pool_item['key'] }}.conf"
+    owner: "{{ __run_php_config_file_owner }}"
+    group: "{{ __run_php_config_file_group }}"
+    mode: "{{ __run_php_config_file_mode }}"
+  vars:
+    __run_php_render_pool_name: "{{ __run_php_pool_item['key'] }}"
+    __run_php_render_pool: >-
+      {{
+        run_php_fpm_pool_defaults
+        | ansible.builtin.combine(__run_php_pool_item['value'], recursive=true)
+      }}
+  when:
+    - __run_php_fpm_enabled
+    - (__run_php_pool_item['value']['state'] | ansible.builtin.default('present')) == 'present'
+  loop: "{{ run_php_fpm_pools | ansible.builtin.dict2items }}"
+  loop_control:
+    loop_var: "__run_php_pool_item"
+    label: "{{ __run_php_pool_item['key'] }}"
+  notify:
+    - "Handlers | PHP-FPM service reload"
+
+
+- name: "Config | Default | Remove PHP-FPM pool files (state: absent)"
+  ansible.builtin.file:
+    path: "{{ __run_php_config_fpm_pool_dir_path }}/{{ __run_php_pool_item['key'] }}.conf"
+    state: "absent"
+  when:
+    - __run_php_fpm_enabled
+    - (__run_php_pool_item['value']['state'] | ansible.builtin.default('present')) == 'absent'
+  loop: "{{ run_php_fpm_pools | ansible.builtin.dict2items }}"
+  loop_control:
+    loop_var: "__run_php_pool_item"
+    label: "{{ __run_php_pool_item['key'] }}"
+  notify:
+    - "Handlers | PHP-FPM service reload"
+
+
+- name: "Config | Default | Discover existing PHP-FPM pool files"
+  ansible.builtin.find:
+    paths: "{{ __run_php_config_fpm_pool_dir_path }}"
+    patterns: "*.conf"
+    file_type: "file"
+  register: "__run_php_fpm_pool_existing"
+  when:
+    - __run_php_fpm_enabled
+    - run_php_fpm_pools_delete_unmanaged
+
+
+- name: "Config | Default | Remove unmanaged PHP-FPM pool files (if any)"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  loop: >-
+    {{
+      (__run_php_fpm_pool_existing['files'] | ansible.builtin.default([]))
+      | ansible.builtin.map(attribute='path')
+      | ansible.builtin.reject(
+          'in',
+          run_php_fpm_pools.keys()
+          | ansible.builtin.map('regex_replace', '^(.*)$', __run_php_config_fpm_pool_dir_path ~ '/\1.conf')
+          | ansible.builtin.list
+        )
+      | ansible.builtin.list
+    }}
+  when:
+    - __run_php_fpm_enabled
+    - run_php_fpm_pools_delete_unmanaged
+  notify:
+    - "Handlers | PHP-FPM service reload"

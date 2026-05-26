@@ -1,0 +1,4 @@
+{%- from '_php_macros.j2' import render_fpm_pool -%}
+{{ ansible_managed }}
+
+{{ render_fpm_pool(__run_php_render_pool_name, __run_php_render_pool) }}

@@ -24,39 +24,157 @@ __run_php_used_facts:
 
 
 # List of platforms this role supports and was designed for.
+__run_php_supported_platforms:
+  - name: "Debian"
+    versions:
+      - "12"
+      - "13"
+  - name: "Fedora"
+    versions:
+      - "43"
+      - "44"
+  - name: "openSUSE Leap"
+    versions:
+      - "16.0"
+  - name: "RedHat" # includes AlmaLinux, Rocky and CentOS Stream
+    versions:
+      - "9"
+      - "10"
+  - name: "Ubuntu"
+    versions:
+      - "22.04"
+      - "24.04"
+      - "26.04"
+
+
+# Whether the platform has per-SAPI INI directories (true on Debian-like) or
+# only a single shared INI scan directory (false on RHEL-like and SUSE-like).
+# Used to gate the per-SAPI scope render for run_php_settings and
+# run_php_extension_settings, and to hard-fail when the user sets per-SAPI
+# scopes on a shared-dir platform.
+__run_php_has_per_sapi_ini: false
+
+
+# Distribution-default PHP version stream. Set in each per-distribution-version
+# vars file (e.g. "8.2" in debian_12.yml, "8.4" in debian_13.yml, "8.3" in
+# almalinux_10.yml). Used when the user sets run_php_version to "default".
 #
-# A warning will be issued if the list contains values and the role is executed
-# on an unknown (not listed) platform, but execution will continue. Example:
+# NOTE on RHEL 9: the *advertised* default module stream is php:8.1 (the
+# repository's [d] marker), but if no module stream is enabled, "dnf install
+# php" resolves to the 8.0 packages that ship in AppStream directly. The role
+# treats whichever ends up resolving as "default" - this is set to "8.0" in
+# the redhat_9.yml so paths and FPM service names align; switching to a
+# module stream is the user's responsibility (the argument_specs already say
+# repository setup is out of scope).
+__run_php_version_distribution_default: ""
+
+
+# Effective PHP version stream used by the role. Resolves "default" against
+# __run_php_version_distribution_default; otherwise passes the user's pinned
+# value through unchanged.
+__run_php_version_effective: >-
+  {{
+    __run_php_version_distribution_default
+    if run_php_version == 'default'
+    else run_php_version
+  }}
+
+
+# Package name prefix used to form per-extension and per-SAPI package names.
+# Set in platform vars files. Examples:
+#   Debian / Ubuntu:        "php{{ __run_php_version_effective }}-"  ("php8.4-")
+#   RHEL / Fedora, default: "php-"
+#   RHEL 10, pinned 8.4:    "php8.4-"
+#   openSUSE Leap 16:       "php8-"
 #
-# - name: "Fedora" # A ansible_facts value ('distribution' or 'os_family')
-#   versions: # A ansible_facts value ('distribution_major_version' or
-#     - "all" # 'distribution_version') or "all"
-# - name: "Ubuntu"
-#   versions:
-#     - "22.04"
-#     - "24.04"
-# - name: "RedHat"
-#   versions:
-#     - "all"
-# - name: "Debian"
-#   versions:
-#     - "all"
-__run_php_supported_platforms: []
+# This is the prefix the role uses to build package names and to refer back
+# to the extension map. It's purely a convenience to avoid spelling out the
+# full per-extension package name in every map entry on every platform.
+__run_php_package_prefix: ""
 
 
-# List of package names to be installed when run_php_state is
-# set to "present".
-__run_php_packages_install: []
+# Mapping of SAPI short name -> list of platform-specific packages to install
+# for that SAPI. Set in platform vars files. Example (Debian 13):
+#   __run_php_sapi_packages_map:
+#     fpm: ["php8.4-fpm"]
+#     cli: ["php8.4-cli"]
+#
+# run_php_sapis is translated to packages via this map.
+__run_php_sapi_packages_map: {}
 
 
-# List of package names to be uninstalled when run_php_state is
-# set to "absent". This variable is useful when __run_php_packages_install
-# contains packages that are required for the managed software to function but
-# should not be removed during uninstallation, as doing so could break other
-# software. This is usually the case if there are common dependencies like
-# "curl" or "openssl" which typically should remain installed even after
-# uninstalling the software managed by this role.
-__run_php_packages_uninstall: "{{ __run_php_packages_install }}"
+# Hard-disallowed SAPI values. The argument_specs reject these via "choices"
+# already, but the role also has an explicit assert in init.yml that prints
+# an actionable message instead of the schema-validator one.
+__run_php_sapis_forbidden:
+  - "apache2handler" # mod_php
+  - "cgi"
+
+
+# Mapping of PHP extension short name -> resources needed to install it on
+# this platform. Set in platform vars files.
+#
+# Modeled after __run_apache_httpd_modules_map_resources. Each value is:
+#
+#   packages:
+#     List of distribution packages that provide the extension. An empty
+#     list means the extension is built into the base PHP packages and
+#     needs no extra install (e.g. "json" is a builtin on PHP 8.x and
+#     ships with php-common).
+#
+# Key naming: the dictionary key is the lowercase PHP extension short name
+# as accepted in "extension=<name>" (e.g. pgsql, pdo_mysql, mbstring,
+# opcache, apcu, xdebug). Capitalisation differences in distribution
+# package names (e.g. "php8-APCu" on openSUSE) are absorbed inside the map
+# entry.
+#
+# Unknown extension short names in run_php_extensions_enabled are hard
+# failures; the failure message lists the keys of this map plus the
+# builtins below.
+__run_php_extensions_map_resources: {}
+
+
+# List of extension short names that are part of the base PHP installation
+# on this platform and need no extra package. They are accepted in
+# run_php_extensions_enabled and in run_php_extension_settings but the
+# role does not try to install anything for them. Populated by platform
+# vars files. Typical entries include core, date, pcre, reflection,
+# spl, standard, plus distribution-specific builtins.
+__run_php_extensions_builtin: []
+
+
+# List of package names to be installed when run_php_state is "present".
+# Aggregated from the base SAPI packages and the user-requested extensions.
+# Built lazily so platform vars files only have to populate the two maps.
+__run_php_packages_install: >-
+  {{
+    ((run_php_sapis
+      | ansible.builtin.map('extract', __run_php_sapi_packages_map)
+      | ansible.builtin.flatten)
+     + (run_php_extensions_enabled
+        | ansible.builtin.select('in', __run_php_extensions_map_resources.keys() | ansible.builtin.list)
+        | ansible.builtin.map('extract', __run_php_extensions_map_resources, 'packages')
+        | ansible.builtin.flatten))
+    | ansible.builtin.unique
+    | ansible.builtin.list
+  }}
+
+
+# List of package names to be uninstalled when run_php_state is "absent".
+# Removes every package the role could have installed on this platform
+# (every known SAPI + every known extension), independently of how
+# run_php_sapis / run_php_extensions_enabled happen to be set at
+# uninstall time.
+__run_php_packages_uninstall: >-
+  {{
+    ((__run_php_sapi_packages_map.values()
+      | ansible.builtin.flatten)
+     + (__run_php_extensions_map_resources.values()
+        | ansible.builtin.map(attribute='packages')
+        | ansible.builtin.flatten))
+    | ansible.builtin.unique
+    | ansible.builtin.list
+  }}
 
 
 # List of package names to be removed unconditionally before installation
@@ -65,19 +183,81 @@ __run_php_packages_removal: []
 
 
 # List of paths of files and directories to be removed unconditionally after
-# installation. This is useful for removing default configuration resources
-# that would otherwise create confusion or conflict with custom configurations
-# managed by this role.
+# installation.
 __run_php_paths_removal: []
 
 
 # Dictionary of files to be overwritten with a managed comment instead of being
-# deleted. Keys are file paths; values are the single-line comment characters to
-# use. This is needed on platforms where the package manager reinstalls deleted
-# files on package update. Restored files would conflict with the managed
-# configuration, while modified files are preserved. For example, RPM with
-# %config(noreplace) restores missing files but preserves modified ones.
+# deleted (RPM %config(noreplace) restores missing files but preserves
+# modified ones; this is the workaround for that). Keys are file paths;
+# values are the single-line comment characters to use.
 __run_php_paths_neutralize: {}
+
+
+# Configuration paths. All set in platform vars files. Empty defaults so an
+# unset value at render time is obvious.
+
+# Shared INI scan directory. On RHEL-like and SUSE-like this is the only INI
+# directory the role writes drop-ins into. On Debian-like the same value is
+# also defined (it points to e.g. /etc/php/<ver>/mods-available/) but the
+# role does not write into it; per-SAPI conf.d/ is used instead.
+__run_php_config_ini_shared_dir_path: ""
+
+# Per-SAPI INI directories. Only meaningful on Debian-like. Empty string on
+# shared-dir platforms; the role refuses to render per-SAPI scopes there.
+__run_php_config_ini_fpm_dir_path: ""
+__run_php_config_ini_cli_dir_path: ""
+
+# Debian-only: the canonical directory holding extension .ini files. The
+# role uses this directory to discover the symlink target when activating an
+# extension into a per-SAPI conf.d/. Empty on non-Debian.
+__run_php_config_mods_available_dir_path: ""
+
+# FPM main configuration file. The role uses ansible.builtin.blockinfile
+# to manage a [global] block inside this file. Path is set per platform.
+__run_php_config_fpm_main_file_path: ""
+
+# FPM pool directory (the pool.d/ directory the role renders pool files
+# into).
+__run_php_config_fpm_pool_dir_path: ""
+
+
+# Ownership and permissions for files / directories the role creates. Stock
+# PHP config is world-readable on every supported platform by default and
+# there is no reason to deviate.
+__run_php_config_file_owner: "root"
+__run_php_config_file_group: "root"
+__run_php_config_file_mode: "u=rw,g=r,o=r" # 0644
+
+__run_php_config_dir_owner: "root"
+__run_php_config_dir_group: "root"
+__run_php_config_dir_mode: "u=rwx,g=rx,o=rx" # 0755
+
+
+# Filename for the role-managed shared-scope INI drop-in. The "99-" prefix
+# makes the role's drop-in load *after* the distribution's own drop-ins
+# (typically prefixed 10- or 20-), so directives the role places win on
+# last-wins INI semantics.
+__run_php_config_ini_dropin_filename: "99-managed.ini"
+
+# Filename template for the role-managed per-extension INI drop-ins. The
+# format placeholder is the extension short name. Rendered into the same
+# directory as the shared drop-in (per-SAPI on Debian-like, shared dir on
+# RHEL/SUSE).
+__run_php_config_ini_extension_dropin_filename_format: "99-managed-{extension}.ini"
+
+
+# PHP-FPM service name. Set in platform vars files. Examples:
+#   Debian 13: "php8.4-fpm.service"
+#   RHEL 10:   "php-fpm.service"
+#   SUSE 16:   "php-fpm.service"
+__run_php_fpm_service_name: ""
+
+
+# Shortcuts derived from run_php_sapis. Defined once here so the rest of
+# the role doesn't have to spell out 'fpm' in run_php_sapis in every guard.
+__run_php_fpm_enabled: "{{ 'fpm' in run_php_sapis }}"
+__run_php_cli_enabled: "{{ 'cli' in run_php_sapis }}"
 
 
 ### Override defaults of dependencies used by this role (if any).

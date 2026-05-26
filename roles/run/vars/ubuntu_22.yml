@@ -1,0 +1,10 @@
+# Internal role variables specific to: Ubuntu 22 (distribution_major_version)
+#
+# Only values specific to the platform and its functionality should be included
+# here. Variables in this file override those defined in vars/debian.yml
+# (Ubuntu's os_family is "Debian").
+
+---
+
+# Ubuntu 22.04 LTS (Jammy Jellyfish) ships PHP 8.1 in main universe.
+__run_php_version_distribution_default: "8.1"

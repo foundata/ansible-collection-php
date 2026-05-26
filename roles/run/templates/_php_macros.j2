@@ -1,0 +1,151 @@
+{#-
+Helper macros shared by the role's templates.
+
+Import in a template via:
+    {% from '_php_macros.j2' import render_ini_scope, render_ini_extension_block, render_fpm_pool %}
+-#}
+
+
+{#-
+Render an INI scalar value with the conventions used by php.ini drop-ins:
+  - Booleans render as On / Off (capitalised, no quotes, the values PHP INI
+    recognises as native true / false).
+  - Numbers render unquoted.
+  - All other values render as double-quoted strings.
+-#}
+{%- macro render_ini_value(value) -%}
+{%- if value is sameas true -%}
+On
+{%- elif value is sameas false -%}
+Off
+{%- elif value is number -%}
+{{ value }}
+{%- else -%}
+"{{ value }}"
+{%- endif -%}
+{%- endmacro -%}
+
+
+{#-
+Render the directives of a single INI section as `name = value` lines.
+`directives` is a flat dictionary.
+-#}
+{%- macro render_ini_directives(directives) -%}
+{%- for name, value in directives.items() %}
+{{ name }} = {{ render_ini_value(value) }}
+{%- endfor %}
+{%- endmacro -%}
+
+
+{#-
+Render a full INI scope (the structure under
+`run_php_settings.{shared,fpm,cli}`):
+  - top-level keys other than `extra_content` are INI section names;
+  - each section's value is a flat dictionary of directives;
+  - the optional `extra_content` key (string) is appended verbatim at the end.
+-#}
+{%- macro render_ini_scope(scope) -%}
+{%- for section_name, section in scope.items() if section_name != 'extra_content' -%}
+[{{ section_name }}]
+{{ render_ini_directives(section) }}
+
+{% endfor -%}
+{%- if 'extra_content' in scope -%}
+{{ scope['extra_content'] }}
+{% endif -%}
+{%- endmacro -%}
+
+
+{#-
+Render a single per-extension block (the structure under
+`run_php_extension_settings.{shared,fpm,cli}.<ext>`):
+  - `extension` is the extension short name (used as the INI section header);
+  - `directives` is a flat dictionary of directives.
+-#}
+{%- macro render_ini_extension_block(extension, directives) -%}
+[{{ extension }}]
+{{ render_ini_directives(directives) }}
+{%- endmacro -%}
+
+
+{#-
+Render an FPM scalar value with the conventions used in php-fpm.conf and
+pool.d/*.conf:
+  - Booleans render as lowercase on / off.
+  - Numbers render unquoted.
+  - Strings render unquoted (PHP-FPM does not require quoting and most stock
+    examples are unquoted; quoting can confuse PHP-FPM for path-like values).
+-#}
+{%- macro render_fpm_value(value) -%}
+{%- if value is sameas true -%}
+on
+{%- elif value is sameas false -%}
+off
+{%- else -%}
+{{ value }}
+{%- endif -%}
+{%- endmacro -%}
+
+
+{#-
+Render `[global]` directives for php-fpm.conf as `name = value` lines.
+`directives` is a flat dictionary.
+-#}
+{%- macro render_fpm_directives(directives) -%}
+{%- for name, value in directives.items() %}
+{{ name }} = {{ render_fpm_value(value) }}
+{%- endfor %}
+{%- endmacro -%}
+
+
+{#-
+Render a single PHP-FPM pool block.
+
+`name`      : pool name (used as the [section] header and the .conf filename).
+`pool`      : merged pool dictionary (defaults deep-merged with the user's
+              per-pool entry; per-pool keys win on conflict).
+
+Recognised keys inside `pool`:
+  - any flat scalar key (`user`, `group`, `listen`, `listen.owner`,
+    `pm`, `pm.max_children`, ...) renders as `key = value`.
+  - `php_admin_value`, `php_value`: dicts rendered as `php_admin_value[k] = v`
+    and `php_value[k] = v` respectively (scalar values).
+  - `php_admin_flag`, `php_flag`: dicts rendered as `php_admin_flag[k] = on|off`
+    and `php_flag[k] = on|off` respectively.
+  - `env`: dict rendered as `env[k] = v` (scalar values).
+  - `extra_content`: string appended verbatim at the end of the pool block.
+  - `state`: ignored here (handled by the calling task).
+
+Keys are emitted in their iteration order, with the bracket directives at the
+end (right before `extra_content`) so the resulting file matches the layout of
+most stock pool examples.
+-#}
+{%- macro render_fpm_pool(name, pool) -%}
+[{{ name }}]
+{%- set bracket_keys = ['php_admin_value', 'php_admin_flag', 'php_value', 'php_flag', 'env'] -%}
+{%- set reserved_keys = bracket_keys + ['state', 'extra_content'] %}
+{%- for key, value in pool.items() if key not in reserved_keys %}
+{{ key }} = {{ render_fpm_value(value) }}
+{%- endfor %}
+{%- for entry_key, entry_render in [
+      ('php_admin_value', 'value'),
+      ('php_admin_flag',  'flag'),
+      ('php_value',       'value'),
+      ('php_flag',        'flag'),
+      ('env',             'value'),
+    ] -%}
+{%- if entry_key in pool and (pool[entry_key] | length) > 0 %}
+{% for k, v in pool[entry_key].items() %}
+{%   if entry_render == 'flag' -%}
+{{ entry_key }}[{{ k }}] = {{ 'on' if v else 'off' }}
+{%   else -%}
+{{ entry_key }}[{{ k }}] = {{ v }}
+{%   endif -%}
+{% endfor %}
+{%- endif -%}
+{%- endfor %}
+{%- if 'extra_content' in pool %}
+
+{{ pool['extra_content'] }}
+{%- endif %}
+{%- endmacro -%}

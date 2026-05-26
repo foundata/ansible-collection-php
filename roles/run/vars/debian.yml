@@ -2,7 +2,198 @@
 #
 # Only values specific to the platform and its functionality should be included
 # here. Variables in this file override those defined in vars/main.yml.
+#
+# This file applies to both Debian and Ubuntu (both have os_family "Debian").
+# The concrete distribution-default PHP version stream is set in the matching
+# per-version vars file (debian_12.yml, debian_13.yml, ubuntu_22.yml,
+# ubuntu_24.yml, ubuntu_26.yml).
 
 ---
 
-# none right now
+# Per-SAPI INI directories exist on Debian-like (/etc/php/<ver>/{fpm,cli}/conf.d/).
+__run_php_has_per_sapi_ini: true
+
+
+# Versioned package prefix. Debian/Ubuntu ship php<ver>-* packages and a
+# php-* metapackage that follows the current default version stream. The
+# role always pins to the versioned form so the result is deterministic
+# regardless of where the metapackage currently points.
+__run_php_package_prefix: "php{{ __run_php_version_effective }}-"
+
+
+# SAPI -> package mapping.
+__run_php_sapi_packages_map:
+  fpm:
+    - "{{ __run_php_package_prefix }}fpm"
+  cli:
+    - "{{ __run_php_package_prefix }}cli"
+
+
+# Extensions that are part of the base PHP install on Debian-like and need
+# no extra package. These appear in mods-available/ after a fresh
+# php<ver>-cli / php<ver>-fpm install (php<ver>-common ships them) plus the
+# always-on PHP built-ins.
+__run_php_extensions_builtin:
+  # Always-on PHP built-ins
+  - "core"
+  - "date"
+  - "hash"
+  - "json"
+  - "pcre"
+  - "random"
+  - "reflection"
+  - "spl"
+  - "standard"
+  - "openssl"
+  - "sodium"
+  # Bundled in php<ver>-common on Debian
+  - "calendar"
+  - "ctype"
+  - "exif"
+  - "ffi"
+  - "fileinfo"
+  - "ftp"
+  - "gettext"
+  - "iconv"
+  - "pdo"
+  - "phar"
+  - "posix"
+  - "readline"
+  - "shmop"
+  - "sockets"
+  - "sysvmsg"
+  - "sysvsem"
+  - "sysvshm"
+  - "tokenizer"
+
+
+# Extension -> packages mapping. The versioned prefix is interpolated lazily
+# so each per-version vars file only needs to set the default version.
+#
+# Notes on the Debian packaging:
+#   - php<ver>-mysql ships both mysqli and pdo_mysql
+#   - php<ver>-pgsql ships both pgsql and pdo_pgsql
+#   - php<ver>-sqlite3 ships both sqlite3 and pdo_sqlite
+#   - php<ver>-odbc ships both odbc and pdo_odbc
+#   - php<ver>-xml is the umbrella for xml, simplexml, xmlreader,
+#     xmlwriter, dom, xsl
+__run_php_extensions_map_resources:
+  # --- Database ---
+  pgsql:
+    packages:
+      - "{{ __run_php_package_prefix }}pgsql"
+  pdo_pgsql:
+    packages:
+      - "{{ __run_php_package_prefix }}pgsql"
+  mysqli:
+    packages:
+      - "{{ __run_php_package_prefix }}mysql"
+  pdo_mysql:
+    packages:
+      - "{{ __run_php_package_prefix }}mysql"
+  sqlite3:
+    packages:
+      - "{{ __run_php_package_prefix }}sqlite3"
+  pdo_sqlite:
+    packages:
+      - "{{ __run_php_package_prefix }}sqlite3"
+  odbc:
+    packages:
+      - "{{ __run_php_package_prefix }}odbc"
+  pdo_odbc:
+    packages:
+      - "{{ __run_php_package_prefix }}odbc"
+  # --- Networking ---
+  curl:
+    packages:
+      - "{{ __run_php_package_prefix }}curl"
+  ldap:
+    packages:
+      - "{{ __run_php_package_prefix }}ldap"
+  soap:
+    packages:
+      - "{{ __run_php_package_prefix }}soap"
+  imap:
+    packages:
+      - "{{ __run_php_package_prefix }}imap"
+  snmp:
+    packages:
+      - "{{ __run_php_package_prefix }}snmp"
+  # --- Text and internationalisation ---
+  mbstring:
+    packages:
+      - "{{ __run_php_package_prefix }}mbstring"
+  intl:
+    packages:
+      - "{{ __run_php_package_prefix }}intl"
+  # --- Data formats ---
+  xml:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  simplexml:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  xmlreader:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  xmlwriter:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  dom:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  xsl:
+    packages:
+      - "{{ __run_php_package_prefix }}xml"
+  zip:
+    packages:
+      - "{{ __run_php_package_prefix }}zip"
+  bz2:
+    packages:
+      - "{{ __run_php_package_prefix }}bz2"
+  # --- Graphics ---
+  gd:
+    packages:
+      - "{{ __run_php_package_prefix }}gd"
+  imagick:
+    packages:
+      - "{{ __run_php_package_prefix }}imagick"
+  # --- Caching and performance ---
+  opcache:
+    packages:
+      - "{{ __run_php_package_prefix }}opcache"
+  apcu:
+    packages:
+      - "{{ __run_php_package_prefix }}apcu"
+  redis:
+    packages:
+      - "{{ __run_php_package_prefix }}redis"
+  memcached:
+    packages:
+      - "{{ __run_php_package_prefix }}memcached"
+  # --- Debug and profiling ---
+  xdebug:
+    packages:
+      - "{{ __run_php_package_prefix }}xdebug"
+  # --- Crypto and math ---
+  bcmath:
+    packages:
+      - "{{ __run_php_package_prefix }}bcmath"
+  gmp:
+    packages:
+      - "{{ __run_php_package_prefix }}gmp"
+
+
+# Configuration paths. Debian uses per-SAPI INI directories under
+# /etc/php/<ver>/{fpm,cli}/conf.d/.
+__run_php_config_ini_shared_dir_path: "/etc/php/{{ __run_php_version_effective }}/mods-available"
+__run_php_config_ini_fpm_dir_path: "/etc/php/{{ __run_php_version_effective }}/fpm/conf.d"
+__run_php_config_ini_cli_dir_path: "/etc/php/{{ __run_php_version_effective }}/cli/conf.d"
+__run_php_config_mods_available_dir_path: "/etc/php/{{ __run_php_version_effective }}/mods-available"
+
+__run_php_config_fpm_main_file_path: "/etc/php/{{ __run_php_version_effective }}/fpm/php-fpm.conf"
+__run_php_config_fpm_pool_dir_path: "/etc/php/{{ __run_php_version_effective }}/fpm/pool.d"
+
+
+# PHP-FPM service name. Versioned on Debian-like.
+__run_php_fpm_service_name: "php{{ __run_php_version_effective }}-fpm.service"

@@ -1,0 +1,225 @@
+# Internal role variables specific to: Suse (os_family)
+#
+# Only values specific to the platform and its functionality should be included
+# here. Variables in this file override those defined in vars/main.yml.
+#
+# Currently this file targets openSUSE Leap 16.0, the only SUSE-family
+# platform on the role's support list. The openSUSE Leap 16.x repositories
+# ship a single PHP stream (8.4 in Leap 16.0), so versioning is not a concern
+# here.
+
+---
+
+# Shared INI scan directory (openSUSE has no per-SAPI INI dirs - per-SAPI
+# php.ini files exist but the conf.d/ drop-in directory is shared).
+__run_php_has_per_sapi_ini: false
+
+
+# Distribution-default PHP version stream. openSUSE Leap 16.x ships only the
+# PHP 8 series; the actual point release is 8.4 in Leap 16.0.
+__run_php_version_distribution_default: "8.4"
+
+
+# Package name prefix. openSUSE uses `php8-*` regardless of the point
+# release (the major number stays at 8 across the Leap 16.x cycle).
+__run_php_package_prefix: "php8-"
+
+
+# SAPI -> package mapping.
+__run_php_sapi_packages_map:
+  fpm:
+    - "{{ __run_php_package_prefix }}fpm"
+  cli:
+    - "{{ __run_php_package_prefix }}cli"
+
+
+# Always-on / built-in extensions on openSUSE. Conservative list of true
+# PHP-core builtins; openSUSE packages even traditionally bundled
+# extensions (ctype, calendar, iconv, posix, sockets, ...) separately, so
+# those are handled via the install map instead of the builtin list.
+__run_php_extensions_builtin:
+  - "core"
+  - "date"
+  - "hash"
+  - "json"
+  - "pcre"
+  - "random"
+  - "reflection"
+  - "spl"
+  - "standard"
+
+
+# Extension -> packages mapping. openSUSE Leap 16.0 ships an unusually
+# granular set of php8-* packages - extensions that are bundled elsewhere
+# (e.g. ctype, calendar, iconv on Debian/RHEL) have their own package here.
+#
+# Notes on openSUSE packaging:
+#   - `php8-mysql` ships `mysqli` and `pdo_mysql`.
+#   - `php8-pgsql` ships `pgsql` and `pdo_pgsql`.
+#   - `php8-sqlite` (note: not "sqlite3") ships `sqlite3` and `pdo_sqlite`.
+#   - `php8-odbc` ships `odbc` and `pdo_odbc`.
+#   - There is no `php8-xml` umbrella; each XML extension is its own
+#     package. `simplexml` ships inside `php8-dom`.
+#   - PECL `APCu` keeps its upstream capitalisation in the package name
+#     (`php8-APCu`).
+#   - `php8-xdebug`, `php8-memcached` and `php8-tideways` are not in the
+#     stock Leap 16 repositories. Users who need them must add a suitable
+#     PECL/devel repo before invoking this role.
+__run_php_extensions_map_resources:
+  # --- Database ---
+  pgsql:
+    packages:
+      - "{{ __run_php_package_prefix }}pgsql"
+  pdo_pgsql:
+    packages:
+      - "{{ __run_php_package_prefix }}pgsql"
+  mysqli:
+    packages:
+      - "{{ __run_php_package_prefix }}mysql"
+  pdo_mysql:
+    packages:
+      - "{{ __run_php_package_prefix }}mysql"
+  sqlite3:
+    packages:
+      - "{{ __run_php_package_prefix }}sqlite"
+  pdo_sqlite:
+    packages:
+      - "{{ __run_php_package_prefix }}sqlite"
+  odbc:
+    packages:
+      - "{{ __run_php_package_prefix }}odbc"
+  pdo_odbc:
+    packages:
+      - "{{ __run_php_package_prefix }}odbc"
+  # --- Networking ---
+  curl:
+    packages:
+      - "{{ __run_php_package_prefix }}curl"
+  ldap:
+    packages:
+      - "{{ __run_php_package_prefix }}ldap"
+  soap:
+    packages:
+      - "{{ __run_php_package_prefix }}soap"
+  ftp:
+    packages:
+      - "{{ __run_php_package_prefix }}ftp"
+  sockets:
+    packages:
+      - "{{ __run_php_package_prefix }}sockets"
+  snmp:
+    packages:
+      - "{{ __run_php_package_prefix }}snmp"
+  # --- Text and internationalisation ---
+  mbstring:
+    packages:
+      - "{{ __run_php_package_prefix }}mbstring"
+  intl:
+    packages:
+      - "{{ __run_php_package_prefix }}intl"
+  iconv:
+    packages:
+      - "{{ __run_php_package_prefix }}iconv"
+  gettext:
+    packages:
+      - "{{ __run_php_package_prefix }}gettext"
+  # --- Data formats ---
+  dom:
+    packages:
+      - "{{ __run_php_package_prefix }}dom"
+  simplexml:
+    packages:
+      - "{{ __run_php_package_prefix }}dom"
+  xmlreader:
+    packages:
+      - "{{ __run_php_package_prefix }}xmlreader"
+  xmlwriter:
+    packages:
+      - "{{ __run_php_package_prefix }}xmlwriter"
+  xsl:
+    packages:
+      - "{{ __run_php_package_prefix }}xsl"
+  zip:
+    packages:
+      - "{{ __run_php_package_prefix }}zip"
+  bz2:
+    packages:
+      - "{{ __run_php_package_prefix }}bz2"
+  # --- Graphics ---
+  gd:
+    packages:
+      - "{{ __run_php_package_prefix }}gd"
+  exif:
+    packages:
+      - "{{ __run_php_package_prefix }}exif"
+  imagick:
+    packages:
+      - "{{ __run_php_package_prefix }}imagick"
+  # --- Caching and performance ---
+  opcache:
+    packages:
+      - "{{ __run_php_package_prefix }}opcache"
+  apcu:
+    packages:
+      - "{{ __run_php_package_prefix }}APCu"
+  redis:
+    packages:
+      - "{{ __run_php_package_prefix }}redis"
+  # --- Crypto and math ---
+  bcmath:
+    packages:
+      - "{{ __run_php_package_prefix }}bcmath"
+  gmp:
+    packages:
+      - "{{ __run_php_package_prefix }}gmp"
+  openssl:
+    packages:
+      - "{{ __run_php_package_prefix }}openssl"
+  sodium:
+    packages:
+      - "{{ __run_php_package_prefix }}sodium"
+  # --- System ---
+  posix:
+    packages:
+      - "{{ __run_php_package_prefix }}posix"
+  pcntl:
+    packages:
+      - "{{ __run_php_package_prefix }}pcntl"
+  shmop:
+    packages:
+      - "{{ __run_php_package_prefix }}shmop"
+  sysvshm:
+    packages:
+      - "{{ __run_php_package_prefix }}sysvshm"
+  sysvsem:
+    packages:
+      - "{{ __run_php_package_prefix }}sysvsem"
+  sysvmsg:
+    packages:
+      - "{{ __run_php_package_prefix }}sysvmsg"
+  # --- Other commonly-bundled-elsewhere extensions packaged separately here ---
+  calendar:
+    packages:
+      - "{{ __run_php_package_prefix }}calendar"
+  ctype:
+    packages:
+      - "{{ __run_php_package_prefix }}ctype"
+  fileinfo:
+    packages:
+      - "{{ __run_php_package_prefix }}fileinfo"
+  tokenizer:
+    packages:
+      - "{{ __run_php_package_prefix }}tokenizer"
+  ffi:
+    packages:
+      - "{{ __run_php_package_prefix }}ffi"
+
+
+# Configuration paths.
+__run_php_config_ini_shared_dir_path: "/etc/php8/conf.d"
+__run_php_config_fpm_main_file_path: "/etc/php8/fpm/php-fpm.conf"
+__run_php_config_fpm_pool_dir_path: "/etc/php8/fpm/php-fpm.d"
+
+
+# PHP-FPM service name. Unversioned on openSUSE.
+__run_php_fpm_service_name: "php-fpm.service"
