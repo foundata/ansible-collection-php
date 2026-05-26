@@ -131,7 +131,7 @@ argument_specs:
           The classic CGI SAPI (`php-cgi`) and `mod_php` (the in-process Apache SAPI)
           are intentionally NOT supported values. Passing either of them hard-fails at
           role start. `mod_php` is not thread-safe and requires the Apache prefork MPM
-          (which kills concurrency and performance). Red Hat deprecated it [1]
+          (which kills concurrency and performance). Red Hat deprecated it in RHEL 8
           and mod_php is not available in RHEL 9. CGI is slower legacy SAPI that was
           superseded by FPM long ago and is not uniformly packaged across distributions
           (openSUSE Leap 16, for example, ships no `php8-cgi` package).
@@ -151,8 +151,6 @@ argument_specs:
             - "fpm"
             - "cli"
           ```
-
-          [1] https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html/8.6_release_notes/deprecated_functionality#deprecated-functionality_dynamic-programming-languages-web-and-database-servers
         type: "list"
         elements: "str"
         default:
@@ -166,19 +164,80 @@ argument_specs:
         description: |
           List of PHP extension short names to install.
 
-          Unknown names cause a hard failure with a message listing the extensions
-          the role knows about.
+          A "short name" is the name PHP itself uses in the `extension=...` INI
+          directive (`extension=pgsql`, `extension=mbstring`, ...) and the same name
+          distributions use as a suffix in their package names (`php<ver>-pgsql` on
+          Debian, `php-pgsql` on RHEL/Fedora, `php8-pgsql` on openSUSE Leap). The
+          role's internal extensions map (`__run_php_extensions_map` in
+          `vars/<platform>.yml`) uses these short names as keys.
 
-          FIXME please add a section on how a name can be looked up upstream? Has php.net
-          a list of known extensions (and therefore: names)?
+          Unknown names cause a hard failure with a message listing the extensions the
+          role knows about.
+
+          Where to look a short name up, in order of authoritativeness:
+
+          - `php -m` (CLI) or `php-fpm -m` (FPM) on any host that already has PHP
+            installed. This is the most reliable source: it is the extension list as
+            PHP itself sees it. Most names are lowercase, though a handful of
+            historical built-ins are capitalized (`Core`, `PDO`, `Reflection`, `SPL`,
+            `Phar`, please use lowercase then)
+          - The distribution's package search, with the platform-specific prefix
+            stripped:
+            - Debian / Ubuntu: `apt-cache search '^php<ver>-'`, strip `php<ver>-`.
+            - RHEL / Fedora / AlmaLinux: `dnf list 'php-*'`, strip `php-`.
+            - openSUSE Leap: `zypper search '^php<ver>-'`, strip `php<ver>-`.
+          - The PHP manual and PECL index for discovery and documentation:
+            - https://www.php.net/manual/en/extensions.alphabetical.php lists bundled
+              extensions by their human-readable display title (for example
+              "PostgreSQL", "Multibyte String", "MySQL Improved Extension"). The short
+              name does NOT appear in the index itself; click through to the entry and
+              read it from the URL (`book.<shortname>.php`, so `book.pgsql.php` for
+              PostgreSQL) or from the `extension=<shortname>` examples on the entry's
+              "Installation" subpage.
+            - https://www.php.net/manual/en/extensions.php gives a bundled-vs-PECL
+              overview and explains the difference.
+            - https://pecl.php.net/packages.php lists PECL extensions (`apcu`,
+              `imagick`, `redis`, `xdebug`, `memcached`, ...) which are not part of the
+              bundled index.
+
+          Case handling: the role requires every entry to be all lowercase(`[a-z0-9_]+`).
+          Any uppercase character (or other unexpected character) causes a hard failure
+          at role start with a message naming the offending entry.
 
           Extensions are installed globally for the host's PHP installation. Per-SAPI
           extension toggling like it is done on Debian (the `phpenmod -s fpm pgsql`
           style) is not supported by this role.
 
-          FIXME add a note that about built-in extensions (I mean that some extensions
-          might enable more than a specifially listed one, eg. wehn tiggering some kinf
-          of php-common package, so this list is a "must have" subsum regarding installations)
+          The list defines the extensions the role guarantees to install and manage.
+          It is a "must-have" set, not the full set of extensions that will end up
+          active on the host: the base PHP packages on every supported distribution
+          ship a bundle of always-on extensions (for example `Core`, `date`, `pcre`,
+          `Reflection`, `SPL`, `standard`, and others, depending on the distribution's
+          `php-common` / `php<ver>-common` / `php8` meta package). Installing any
+          single SAPI usually pulls that meta package in as a dependency, so the
+          actually-active extension set is normally a superset of `run_php_extensions`.
+          The role does not try to disable or otherwise interfere with those
+          transitively-installed extensions; if you need to verify what is actually
+          loaded on a given host, run `php -m` (CLI) or `php-fpm -m` (FPM).
+
+          A non-exhaustive anchor list of short names you will commonly want,
+          grouped by purpose:
+
+          - Database: `pgsql`, `pdo_pgsql`, `mysqli`, `pdo_mysql`, `sqlite3`,
+            `pdo_sqlite`, `odbc`, `pdo_odbc`.
+          - Networking: `curl`, `ldap`, `soap`, `ftp`, `imap`, `sockets`,
+            `snmp`.
+          - Text and internationalisation: `mbstring`, `intl`, `iconv`,
+            `gettext`.
+          - Data formats: `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `dom`,
+            `xsl`, `zip`, `bz2`.
+          - Graphics: `gd`, `exif`, `imagick` (PECL).
+          - Caching and performance: `opcache`, `apcu` (PECL), `redis` (PECL),
+            `memcached` (PECL).
+          - Debug and profiling: `xdebug` (PECL), `tideways` (PECL).
+          - Crypto and math: `bcmath`, `gmp`, `sodium`, `openssl`.
+          - System: `posix`, `pcntl`, `shmop`, `sysvshm`, `sysvsem`,
+            `sysvmsg`.
 
           Example:
 
@@ -189,6 +248,7 @@ argument_specs:
             - "intl"
             - "mbstring"
             - "opcache"
+            - "xdebug"     # PECL, only useful on dev/debug hosts
           ```
         type: "list"
         elements: "str"
@@ -391,16 +451,29 @@ argument_specs:
           so the values never enter the shared INI directory used by shared-dir
           platforms (RHEL-like, SUSE-like) and behave identically on every platform.
 
-          The structure mirrors what PHP-FPM expects inside a pool block:
+          The structure mirrors what PHP-FPM expects inside a pool block.
+          PHP-FPM has five associative-array bracket directives — the full
+          set is supported here. Pick `_admin` variants when the value must
+          not be overridable by application code at runtime (`ini_set()`):
 
-          - `php_admin_value`: dictionary of name to scalar value. Rendered
-            as `php_admin_value[name] = value` lines.
-          - `php_admin_flag`: dictionary of name to boolean. YAML booleans
-            are rendered as PHP-FPM `on` / `off`. Rendered as
-            `php_admin_flag[name] = on|off` lines.
+          - `php_admin_value`: dictionary of name to scalar value, locked
+            from app code (PHP_INI_SYSTEM). Rendered as
+            `php_admin_value[name] = value` lines.
+          - `php_admin_flag`: dictionary of name to boolean, locked from
+            app code. YAML booleans render as PHP-FPM `on` / `off`. Rendered
+            as `php_admin_flag[name] = on|off` lines.
+          - `php_value`: dictionary of name to scalar value, app may
+            re-override via `ini_set()`. Rendered as
+            `php_value[name] = value` lines.
+          - `php_flag`: dictionary of name to boolean, app may re-override.
+            Rendered as `php_flag[name] = on|off` lines.
           - `env`: dictionary of environment variable names to string
             values that the pool will export to its workers. Rendered as
             `env[NAME] = value` lines.
+
+          The list-shaped directive `access.suppress_path[]` (numerically
+          indexed, not associative) is not modeled as a typed key; use a
+          pool's `extra_content` for it.
 
           The variable is honored only when `"fpm"` appears in `run_php_sapis`. Setting
           it without FPM in the SAPI list produces a debug notice and the variable is
@@ -417,6 +490,10 @@ argument_specs:
             php_admin_flag:
               display_errors: false
               log_errors: true
+            php_value:
+              default_socket_timeout: "60"
+            php_flag:
+              short_open_tag: false
             env:
               APP_ENV: "production"
           ```
@@ -425,14 +502,31 @@ argument_specs:
         options:
           php_admin_value:
             description: |
-              Pool-level INI directives, scalar values. Rendered as
-              `php_admin_value[<name>] = <value>` inside the pool block.
+              Pool-level INI directives, scalar values. PHP_INI_SYSTEM —
+              locked from app code (cannot be overridden via `ini_set()`).
+              Rendered as `php_admin_value[<name>] = <value>` inside the
+              pool block.
             type: "dict"
           php_admin_flag:
             description: |
-              Pool-level INI directives, boolean values. YAML booleans
-              render as PHP-FPM `on` / `off`. Rendered as
-              `php_admin_flag[<name>] = <on|off>` inside the pool block.
+              Pool-level INI directives, boolean values. Locked from app
+              code. YAML booleans render as PHP-FPM `on` / `off`. Rendered
+              as `php_admin_flag[<name>] = <on|off>` inside the pool block.
+            type: "dict"
+          php_value:
+            description: |
+              Pool-level INI directives, scalar values. App code may
+              re-override via `ini_set()` at runtime. Use the `_admin`
+              variant when the value must survive app code. Rendered as
+              `php_value[<name>] = <value>` inside the pool block.
+            type: "dict"
+          php_flag:
+            description: |
+              Pool-level INI directives, boolean values. App code may
+              re-override at runtime. Use the `_admin` variant when the
+              value must survive app code. YAML booleans render as
+              PHP-FPM `on` / `off`. Rendered as
+              `php_flag[<name>] = <on|off>` inside the pool block.
             type: "dict"
           env:
             description: |
@@ -461,18 +555,28 @@ argument_specs:
           - PHP-FPM directives such as `user`, `group`, `listen`, `listen.owner`,
             `listen.group`, `listen.mode`, `pm`, `pm.max_children`, `pm.start_servers`,
             `pm.min_spare_servers`, ... Names are used 1:1 with what PHP-FPM expects.
-          - `php_admin_value`: dictionary of name to scalar value. Rendered as
+          - `php_admin_value`: dictionary of name to scalar value, locked from app
+            code (PHP_INI_SYSTEM — `ini_set()` cannot change it). Rendered as
             `php_admin_value[name] = value`. Merges with
             `run_php_fpm_pool_defaults.php_admin_value`; pool-level keys win on
             conflict.
-          - `php_admin_flag`: dictionary of name to boolean. Rendered as
-            `php_admin_flag[name] = on|off`. Merges with the matching default,
+          - `php_admin_flag`: dictionary of name to boolean, locked from app code.
+            Rendered as `php_admin_flag[name] = on|off`. Merges with the matching
+            default, pool-level wins on conflict.
+          - `php_value`: dictionary of name to scalar value; app code may re-override
+            via `ini_set()`. Use the `_admin` variant when the value must survive app
+            code. Rendered as `php_value[name] = value`. Merges with the matching
+            default, pool-level wins on conflict.
+          - `php_flag`: dictionary of name to boolean; app code may re-override.
+            Rendered as `php_flag[name] = on|off`. Merges with the matching default,
             pool-level wins on conflict.
           - `env`: dictionary of environment variable names to values exported to the
             pool's workers. Merges with the matching default, pool-level wins on
             conflict.
           - `extra_content`: raw string appended verbatim to the rendered pool file
-            after the structured render. INI last-wins applies.
+            after the structured render. INI last-wins applies. Use this for the
+            list-shaped directive `access.suppress_path[]` and anything else not
+            modeled as a typed key.
 
           Pools NOT listed in this dictionary are left on disk by default. To enable
           strict declarative ownership of `pool.d/`, set
