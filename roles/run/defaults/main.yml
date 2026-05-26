@@ -23,24 +23,26 @@ run_php_state: "present"
 run_php_autoupgrade: false
 
 
-# String. Defines the status of the service(s). Defaults to "enabled".
-# Possible values:
-#
-# - "enabled": Service is running and will start automatically at boot.
-# - "disabled": Service is stopped and will not start automatically at boot.
-# - "running": Service is running but will not start automatically at boot.
-#   This can be used to start a service on the first Ansible run without
-#   enabling it for boot.
-# - "unmanaged": Service will not start at boot, and Ansible will not
-#   manage its running state. This is primarily useful when services are
-#   monitored and managed by systems other than Ansible.
-#
-# The singular form ("service") is used for simplicity. However, the defined
-# status applies to all services if multiple are being managed by this role.
-run_php_service_state: "enabled"
+run_php_fpm_service_state: "enabled"
 
+run_php_version: "default"
 
-# FIXME Description of a very important example parameter. Do not forget to
-#       update meta/argument_specs.yml if you add new parameters.
-#
-# run_php_example_parameter_variable: true
+run_php_sapis:
+  - "fpm"
+  - "cli"
+
+run_php_extensions_enabled: []
+
+run_php_extensions_disable_unmanaged: false
+
+run_php_settings: {}
+
+run_php_extension_settings: {}
+
+run_php_fpm_pool_defaults: {}
+
+run_php_fpm_pools: {}
+
+run_php_fpm_pools_delete_unmanaged: false
+
+run_php_fpm_service_settings: {}

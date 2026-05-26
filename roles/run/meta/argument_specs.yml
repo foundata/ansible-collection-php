@@ -278,11 +278,12 @@ argument_specs:
           `zend_extension=` directives. On those platforms this option does not disable
           unmanaged extensions.
 
-          When set to `false`, unmanaged extensions are left untouched. Use this if you
-          manage additional extensions outside of this role and want to prevent
-          accidental unavailability of extensions loaded by default on your platform.
+          When set to `false` (which is the default), unmanaged extensions are left
+          untouched. Use this if  want to prevent accidental unavailability of
+          extensions loaded by default on your platform or you manage additional
+          extensions outside of this role.
         type: "bool"
-        default: true
+        default: false
 
       # INI scope semantics: the central design decision of this role.
       #
