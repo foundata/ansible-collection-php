@@ -160,16 +160,14 @@ argument_specs:
           - "fpm"
           - "cli"
 
-      run_php_extensions:
+      run_php_extensions_enabled:
         description: |
-          List of PHP extension short names to install.
+          List of PHP extension short names to enable (and install if needed).
 
           A "short name" is the name PHP itself uses in the `extension=...` INI
           directive (`extension=pgsql`, `extension=mbstring`, ...) and the same name
           distributions use as a suffix in their package names (`php<ver>-pgsql` on
-          Debian, `php-pgsql` on RHEL/Fedora, `php8-pgsql` on openSUSE Leap). The
-          role's internal extensions map (`__run_php_extensions_map` in
-          `vars/<platform>.yml`) uses these short names as keys.
+          Debian, `php-pgsql` on RHEL/Fedora, `php8-pgsql` on openSUSE Leap).
 
           Unknown names cause a hard failure with a message listing the extensions the
           role knows about.
@@ -215,10 +213,11 @@ argument_specs:
           `Reflection`, `SPL`, `standard`, and others, depending on the distribution's
           `php-common` / `php<ver>-common` / `php8` meta package). Installing any
           single SAPI usually pulls that meta package in as a dependency, so the
-          actually-active extension set is normally a superset of `run_php_extensions`.
-          The role does not try to disable or otherwise interfere with those
-          transitively-installed extensions; if you need to verify what is actually
-          loaded on a given host, run `php -m` (CLI) or `php-fpm -m` (FPM).
+          actually-active extension set is normally a superset of
+          `run_php_extensions_enabled`. The role does not try to disable or otherwise
+          interfere with those transitively-installed extensions based on this setting;
+          if you need to verify what is actually loaded on a given host, run
+          `php -m` (CLI) or `php-fpm -m` (FPM).
 
           A non-exhaustive anchor list of short names you will commonly want,
           grouped by purpose:
@@ -242,7 +241,7 @@ argument_specs:
           Example:
 
           ```yaml
-          run_php_extensions:
+          run_php_extensions_enabled:
             - "pgsql"
             - "curl"
             - "intl"
@@ -253,6 +252,37 @@ argument_specs:
         type: "list"
         elements: "str"
         default: []
+
+      run_php_extensions_disable_unmanaged:
+        description: |
+          Controls whether the role disables extensions that are not declared in
+          `run_php_extensions_enabled`.
+
+          This is intentionally best-effort. PHP has no portable, cross-platform
+          extension activation registry. Built-in extensions and extensions loaded by
+          package-managed configuration may remain active even when they are not listed
+          here.
+
+          When set to `true`, extensions not listed in `run_php_extensions_enabled` are
+          disabled only on platforms where extension activation is represented by
+          removable SAPI-specific symlinks. On Debian-like platforms, the role removes
+          unmanaged symlinks from the selected SAPIs' `conf.d/` directories (for
+          example `/etc/php/<version>/fpm/conf.d/` and
+          `/etc/php/<version>/cli/conf.d/`) while leaving the canonical files in
+          `mods-available/` untouched.
+
+          On RHEL-like platforms and SUSE-like platforms, PHP extension drop-ins are
+          package-owned files in a shared INI scan directory (for example `/etc/php.d/`
+          on RHEL-like platforms and `/etc/php8/conf.d/` on openSUSE). The role does
+          not edit those package-owned files to comment out `extension=` or
+          `zend_extension=` directives. On those platforms this option does not disable
+          unmanaged extensions.
+
+          When set to `false`, unmanaged extensions are left untouched. Use this if you
+          manage additional extensions outside of this role and want to prevent
+          accidental unavailability of extensions loaded by default on your platform.
+        type: "bool"
+        default: true
 
       # INI scope semantics: the central design decision of this role.
       #
@@ -361,7 +391,7 @@ argument_specs:
       # Same scope model as `run_php_settings`. Top-level keys are scopes (`shared`,
       # `fpm`, `cli`); second-level keys are extension names that MUST appear in the
       # role's internal extensions map. Unknown extension# names cause a hard failure
-      # for the same reason as in `run_php_extensions`.
+      # for the same reason as in `run_php_extensions_enabled`.
       #
       # Third-level keys are flat INI directives for that extension. The same
       # platform rules as `run_php_settings` apply: per-SAPI scopes render only
@@ -382,9 +412,9 @@ argument_specs:
           - `<sapi>.<ext>` hard-fails on shared-dir platforms when non-empty. On
             Debian-like it renders into that SAPI's INI directory only.
 
-          Unknown extension names cause a hard failure listing the known ones. Extension
-          settings declared here for an extension that is not listed in
-          `run_php_extensions` produce a debug notice and the configuration is skipped.
+          Extension settings declared here for an extension that is not listed in
+          `run_php_extensions_enabled` produce a debug notice and the configuration is
+          skipped.
 
           The most common case (settings that should apply uniformly to every SAPI) goes
           under `shared:`. Per-SAPI behaviour such as enabling Xdebug only for CLI works
