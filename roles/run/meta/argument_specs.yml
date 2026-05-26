@@ -1,0 +1,663 @@
+# Role argument validation.
+#
+# See defaults/main.yml for details on each variable. For more information on
+# the argument_specs.yml format, refer to the official Ansible documentation:
+# https://docs.ansible.com/ansible/latest/playbook_guide/playbooks_reuse_roles.html#role-argument-validation
+
+---
+
+argument_specs:
+
+  # foundata.php/roles/run/tasks/main.yml entry point
+  main:
+    short_description: "Main entry point for the foundata.php.run role"
+    options:
+
+      run_php_state:
+        description: |
+          Determines whether the managed resources should be `present` or `absent`.
+
+          `present` ensures that required components, such as software packages, are
+          installed and configured.
+
+          `absent` reverts changes as much as possible, such as removing packages,
+          deleting created users, stopping services, restoring modified settings, …
+        type: "str"
+        default: "present"
+        choices:
+          - "present"
+          - "absent"
+
+      run_php_autoupgrade:
+        description: |
+          If set to `true`, all managed packages will be upgraded during each Ansible
+          run (e.g., when the package provider detects a newer version than the
+          currently installed one).
+        type: "bool"
+        default: false
+
+      run_php_fpm_service_state:
+        description: |
+          Defines the status of the PHP-FPM (FastCGI Process Manager) service.
+          FPM is the PHP SAPI (Server API, see `run_php_sapis` for the full
+          primer) intended to be reached from a web server such as Apache or
+          NGINX over a FastCGI socket; it is the only PHP SAPI that runs as a
+          long-lived daemon and therefore the only one with a service state to
+          manage.
+
+          `enabled`: Service is running and will start automatically at boot.
+
+          `disabled`: Service is stopped and will not start automatically at boot.
+
+          `running`: Service is running but will not start automatically at boot.
+          This can be used to start a service on the first Ansible run without
+          enabling it for boot.
+
+          `unmanaged`: Service will not start at boot, and Ansible will not manage
+          its running state. This is primarily useful when services are monitored
+          and managed by systems other than Ansible.
+
+          The variable is honored only when `"fpm"` appears in `run_php_sapis`.
+          The CLI and CGI SAPIs do not have a long-running daemon, so there is no
+          service lifecycle to manage for them. Setting this variable on a host
+          where FPM is not part of the SAPI selection results in a debug notice
+          and the variable is ignored.
+        type: "str"
+        default: "enabled"
+        choices:
+          - "enabled"
+          - "disabled"
+          - "running"
+          - "unmanaged"
+
+      run_php_version:
+        description: |
+          Selects which PHP version stream this role manages on the target host.
+
+          The value `"default"` keeps the role aligned with the PHP version stream
+          shipped by the distribution in its standard repositories. The exact
+          version that results depends on the OS release.
+
+          Pinning a concrete value such as `"8.3"` or `"8.2"` makes the role use
+          the matching package set and filesystem paths (resolved per platform in
+          `vars/<platform>.yml`). On distributions that ship only one PHP version
+          stream natively, a pinned non-default value requires the matching
+          third-party repository to already be configured (for example Sury on
+          Debian, Remi on RHEL). Setting up those repositories is intentionally
+          out of scope for this role yet.
+
+          Managing multiple parallel PHP version streams on the same host with a
+          single role invocation is also out of scope. If you need that, invoke
+          the role multiple times with different `run_php_version` values and
+          take care that each invocation manages a disjoint set of SAPIs, pools,
+          and INI drop-ins (but you can define shared variables for sure).
+        type: "str"
+        default: "default"
+
+      # SAPI selection design notes:
+      #
+      # This role manages the PHP runtime, not one specific SAPI. Users declare
+      # which SAPIs the target host needs in `run_php_sapis`. All SAPI-scoped
+      # variables (`run_php_fpm_*`, the per-SAPI scopes inside
+      # `run_php_settings` and `run_php_extension_settings`) are only acted on
+      # for SAPIs listed here.
+
+      #
+      # Setting a SAPI-scoped variable for a SAPI that is not in `run_php_sapis`
+      # produces a debug notice and the variable is skipped without a hard
+      # failure. This lenient behaviour keeps multi-host inventories portable
+      # across hosts with different SAPI footprints; a stricter rule would
+      # force operators into a lot of `when:` gymnastics in group_vars.
+      run_php_sapis:
+        description: |
+          List of PHP SAPIs the role should install and manage on the host.
+
+          A SAPI (Server API) is the interface layer through which PHP receives
+          requests and returns responses. Different SAPIs are different runtime
+          modes of the same PHP installation; on most systems multiple SAPIs are
+          installed side by side and selected based on how PHP is invoked. The
+          role currently supports the following SAPI values:
+
+          - `"fpm"`: FastCGI Process Manager. A long-running daemon that web
+            servers (Apache, NGINX, ...) connect to over a FastCGI socket
+            (Unix or TCP). The mainstream choice for serving web requests
+            today. Only this SAPI has a service state to manage; see
+            `run_php_fpm_service_state`.
+          - `"cli"`: Command-line interpreter. Used to run PHP scripts directly
+            from a shell, in cron jobs, in deployment scripts, and by tools
+            like `composer`. Has no daemon and no listener.
+          - `"cgi"`: Classic CGI. Spawns one PHP process per HTTP request,
+            invoked by the web server. Legacy mode kept for compatibility;
+            prefer FPM for new deployments.
+
+          `mod_php` (the in-process Apache SAPI) is intentionally NOT a
+          supported value. It is not thread-safe, and requires the Apache
+          prefork MPM (which kills concurrency and performance). Use FPM behind
+          Apache or NGINX instead. Red Hat deprecated it [1] and mod_php is not
+          availble in RHEL 9.
+
+          Any combination of the supported values is allowed (including a
+          single entry). An empty list is technically accepted but unusual:
+          the role would only ensure the common PHP runtime packages are
+          present and would not manage any SAPI-specific package or
+          configuration.
+
+          If a value in the list is not installable on the target platform, the
+          role hard-fails before any install action with an actionable message.
+
+          Example:
+
+          ```yaml
+          run_php_sapis:
+            - "fpm"
+            - "cli"
+          ```
+
+          [1] https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/8/html/8.6_release_notes/deprecated_functionality#deprecated-functionality_dynamic-programming-languages-web-and-database-servers
+        type: "list"
+        elements: "str"
+        default:
+          - "fpm"
+          - "cli"
+        choices:
+          - "fpm"
+          - "cli"
+          - "cgi"
+
+      run_php_extensions:
+        description: |
+          List of PHP extension short names to install.
+
+          Names are looked up in the role's internal extension map
+          (`__run_php_extensions_map` in `vars/<platform>.yml`) to resolve the
+          distribution packages, the matching INI drop-in path, and whether
+          the extension is loaded via `extension=` or `zend_extension=`
+          (the latter applies to Zend extensions such as OPcache and Xdebug).
+
+          Unknown names cause a hard failure with a message listing the
+          extensions the role knows about. This is stricter than the equivalent
+          rule in `foundata.apache_httpd.run`'s module list, because PHP has no
+          equivalent of vhost-level `LoadModule`. A silently skipped extension
+          would not surface until requests start failing in production, so
+          failing loudly at role start is the better default.
+
+          Extensions are installed globally for the host's PHP installation.
+          Per-SAPI extension toggling like it is done on Debian (the
+          `phpenmod -s fpm pgsql` style) is not supported by this role.
+
+          Example:
+
+          ```yaml
+          run_php_extensions:
+            - "pgsql"
+            - "curl"
+            - "intl"
+            - "mbstring"
+            - "opcache"
+          ```
+        type: "list"
+        elements: "str"
+        default: []
+
+      # INI scope semantics: the central design decision of this role.
+      #
+      # PHP's INI configuration is delivered as drop-in files. Where those
+      # drop-ins live differs sharply by platform:
+      #
+      #   - Debian-like: every SAPI has its own conf.d directory
+      #     (`/etc/php/<ver>/{fpm,cli,cgi}/conf.d/`), so per-SAPI INI exists as
+      #     a first-class concept.
+      #   - RHEL-like: all SAPIs share `/etc/php.d/`. Per-SAPI INI literally
+      #     cannot exist there; the platform does not represent it.
+      #
+      # `run_php_settings` is keyed by configuration SCOPE, not by SAPI:
+      #
+      #   - `shared` applies to every selected SAPI. On Debian-like the
+      #     content is rendered into every selected SAPI's conf.d/. On
+      #     RHEL-like it is rendered once into `/etc/php.d/`. This is the
+      #     only cross-platform portable scope for php.ini.
+      #   - `fpm`, `cli`, `cgi` apply only to that one SAPI. On Debian-like
+      #     they render into the matching SAPI's conf.d/. On RHEL-like the
+      #     role HARD-FAILS at role start if any of them are non-empty,
+      #     because the platform cannot represent the requested semantics.
+      #
+      # Hard-failing forces operators to restructure to a portable form:
+      # either move the setting to `shared:` (accepting it applies to every
+      # SAPI) or use `run_php_fpm_pool_defaults` / per-pool
+      # `php_admin_value` and `php_admin_flag` (which are the only
+      # cross-platform portable way to set FPM-only INI, because they end
+      # up inside `pool.d/<name>.conf` and not in `/etc/php.d/`).
+      #
+      # The reserved key `extra_content` (string) inside each scope is the
+      # raw INI escape hatch. Its content is appended verbatim after the
+      # structured render for that scope. INI last-wins applies: an
+      # `extra_content` line that re-defines a structured key wins. The
+      # platform rules above apply unchanged: `extra_content` inside a
+      # per-SAPI scope also hard-fails on RHEL.
+      run_php_settings:
+        description: |
+          PHP INI configuration as a scope-keyed nested dictionary. The role renders
+          one or more drop-in `.ini` files into the appropriate SAPI INI directory (or
+          the shared `/etc/php.d/` on RHEL-like systems).
+
+          Top-level keys are configuration scopes:
+
+          - `shared`: applies to every SAPI selected via `run_php_sapis`. This is the
+            only cross-platform portable scope for php.ini.
+          - `fpm`, `cli`, `cgi`: apply only to that one SAPI. Works on Debian-like
+            (per-SAPI conf.d/ directories exist) and hard-fails at role start on
+            RHEL-like (a shared `/etc/php.d/` cannot represent per-SAPI INI). When using
+            RHEL, restructure to `shared` or to `run_php_fpm_pool_defaults` / per-pool
+            `php_admin_value` or use intelligent group_vars in your inventory.
+
+          Inside each scope, top-level keys are INI section names (`PHP`, `Date`,
+          `opcache`, ...). Values are flat dictionaries of INI directives for that
+          section.
+
+          For configuration that is FPM-only and must stay portable across  platforms,
+          prefer `run_php_fpm_pool_defaults` or per-pool `php_admin_value` /
+          `php_admin_flag` inside `run_php_fpm_pools`. Those end up inside the pool's
+          own `.conf` file and never touch the shared `/etc/php.d/`, so they work on
+          every platform.
+
+          The reserved key `extra_content` (a string, NOT a section dict) is
+          a last-resort escape hatch. It gets appended verbatim to the rendered drop-in
+          for that scope after the structured render. Use it for directives the
+          structured schema cannot express (the role developers did not find any but you
+          never know). INI last-wins applies: an `extra_content` line for a key already
+          set via structured settings overrides the structured value. Do not use this
+          without a good reasomn `extra_content` is never treated as an INI section name.
+
+          Example:
+
+          ```yaml
+          run_php_settings:
+            shared:
+              PHP:
+                date.timezone: "UTC"
+                expose_php: false
+              extra_content: |
+                ; raw INI directives appended verbatim
+            fpm:
+              PHP:
+                upload_max_filesize: "64M"
+                post_max_size: "64M"
+            cli:
+              PHP:
+                memory_limit: "512M"
+                max_execution_time: 0
+          ```
+        type: "dict"
+        default: {}
+        options:
+          shared:
+            description: |
+              Settings that apply to every selected SAPI. Renders into every
+              selected SAPI's INI directory on Debian-like platforms, and
+              once into `/etc/php.d/` on RHEL-like platforms. This is the
+              only cross-platform portable INI scope.
+
+              Top-level keys inside this dictionary are INI section names
+              (open set, role does not validate them). The reserved
+              `extra_content` key is a string appended verbatim after the
+              structured render.
+            type: "dict"
+          fpm:
+            description: |
+              Settings that apply only to the FPM SAPI. Renders into
+              `fpm/conf.d/` on Debian-like platforms. Hard-fails on
+              RHEL-like platforms when non-empty, because the shared
+              `/etc/php.d/` on RHEL-like systems cannot represent per-SAPI INI.
+              For cross-platform FPM-only INI, use `run_php_fpm_pool_defaults`
+              or per-pool `php_admin_value` / `php_admin_flag` instead.
+            type: "dict"
+          cli:
+            description: |
+              Settings that apply only to the CLI SAPI. Renders into
+              `cli/conf.d/` on Debian-like platforms. Hard-fails on
+              RHEL-like platforms when non-empty (same reason as the `fpm`
+              scope; see there for alternatives).
+            type: "dict"
+          cgi:
+            description: |
+              Settings that apply only to the CGI SAPI. Renders into
+              `cgi/conf.d/` on Debian-like platforms. Hard-fails on
+              RHEL-like platforms when non-empty. CGI is supported for
+              completeness but documented as a legacy choice; prefer FPM.
+            type: "dict"
+
+      # Per-extension INI settings.
+      #
+      # Same scope model as `run_php_settings`. Top-level keys are scopes
+      # (`shared`, `fpm`, `cli`, `cgi`); second-level keys are extension
+      # names that MUST appear in the role's internal extensions map.
+      # Unknown extension names cause a hard failure for the same reason as
+      # in `run_php_extensions`. An extension being configured here without
+      # being listed in `run_php_extensions` produces a debug notice and
+      # the configuration is skipped (consistent with the SAPI-mismatch
+      # rule on `run_php_sapis`).
+      #
+      # Third-level keys are flat INI directives for that extension. The
+      # same platform rules as `run_php_settings` apply: per-SAPI scopes
+      # render only on Debian-like platforms and hard-fail on RHEL-like
+      # platforms when non-empty.
+      run_php_extension_settings:
+        description: |
+          INI directives applied per extension, scoped the same way as
+          `run_php_settings`. Top-level keys are configuration scopes (`shared`, `fpm`,
+          `cli`, `cgi`); second-level keys are extension short names; third-level keys
+          are flat INI directives for that extension.
+
+          The cross-platform rules are identical to `run_php_settings`:
+
+          - `shared.<ext>` is portable everywhere. Renders into every selected SAPI's
+            INI directory on Debian-like and once into `/etc/php.d/` on RHEL-like.
+          - `<sapi>.<ext>` hard-fails on RHEL-like platforms when non-empty. On
+            Debian-like it renders into that SAPI's INI directory only.
+
+          Unknown extension names cause a hard failure listing the known ones. Extension
+          settings declared here for an extension that is not listed in
+          `run_php_extensions` produce a debug notice and the configuration is skipped.
+
+          The most common case (settings that should apply uniformly to every SAPI) goes
+          under `shared:`. Per-SAPI behaviour such as enabling Xdebug only for CLI works
+          on Debian-like platforms via the matching SAPI scope; on RHEL-like platforms
+          the same restructure-to-shared rule applies as for `run_php_settings`.
+
+          Example:
+
+          ```yaml
+          run_php_extension_settings:
+            shared:
+              opcache:
+                opcache.memory_consumption: 256
+                opcache.max_accelerated_files: 20000
+                opcache.enable_cli: 0
+            cli:
+              xdebug:
+                xdebug.mode: "debug"
+                xdebug.start_with_request: "yes"
+          ```
+        type: "dict"
+        default: {}
+        options:
+          shared:
+            description: |
+              Extension settings that apply to every selected SAPI. The only
+              cross-platform portable per-extension scope.
+            type: "dict"
+          fpm:
+            description: |
+              Extension settings that apply only to the FPM SAPI. Renders on
+              Debian-like, hard-fails on RHEL-like when non-empty.
+            type: "dict"
+          cli:
+            description: |
+              Extension settings that apply only to the CLI SAPI. Renders on
+              Debian-like, hard-fails on RHEL-like when non-empty.
+            type: "dict"
+          cgi:
+            description: |
+              Extension settings that apply only to the CGI SAPI. Renders on
+              Debian-like, hard-fails on RHEL-like when non-empty.
+            type: "dict"
+
+      # Pool defaults.
+      #
+      # Cross-platform portable mechanism for FPM-only INI. The content
+      # merges underneath every pool in `run_php_fpm_pools` at render time,
+      # so each pool ends up carrying its own copy of these directives
+      # inside its `pool.d/<name>.conf`. That stays per-pool, per-worker,
+      # and survives the RHEL `/etc/php.d/` shared-INI restriction because
+      # the directives never enter `/etc/php.d/` in the first place.
+      #
+      # Per-pool keys win on conflict at any depth. Honored only when
+      # `"fpm"` is in `run_php_sapis`.
+      run_php_fpm_pool_defaults:
+        description: |
+          Defaults merged underneath every pool in `run_php_fpm_pools` at
+          render time. Per-pool entries override defaults on any matching
+          key (deep merge: pool's `php_admin_value.memory_limit` overrides
+          the default's `php_admin_value.memory_limit`).
+
+          This is the cross-platform portable way to set FPM-only INI: each
+          pool ends up with its own copy of these directives inside its
+          `pool.d/<name>.conf` file, so the values never enter the shared
+          `/etc/php.d/` on RHEL-like platforms and behave identically on
+          every platform.
+
+          The structure mirrors what PHP-FPM expects inside a pool block:
+
+          - `php_admin_value`: dictionary of name to scalar value. Rendered
+            as `php_admin_value[name] = value` lines.
+          - `php_admin_flag`: dictionary of name to boolean. YAML booleans
+            are rendered as PHP-FPM `on` / `off`. Rendered as
+            `php_admin_flag[name] = on|off` lines.
+          - `env`: dictionary of environment variable names to string
+            values that the pool will export to its workers. Rendered as
+            `env[NAME] = value` lines.
+
+          The variable is honored only when `"fpm"` appears in
+          `run_php_sapis`. Setting it without FPM in the SAPI list
+          produces a debug notice and the variable is ignored.
+
+          Example:
+
+          ```yaml
+          run_php_fpm_pool_defaults:
+            php_admin_value:
+              upload_max_filesize: "64M"
+              post_max_size: "64M"
+              memory_limit: "256M"
+            php_admin_flag:
+              display_errors: false
+              log_errors: true
+            env:
+              APP_ENV: "production"
+          ```
+        type: "dict"
+        default: {}
+        options:
+          php_admin_value:
+            description: |
+              Pool-level INI directives, scalar values. Rendered as
+              `php_admin_value[<name>] = <value>` inside the pool block.
+              Keys are open and are not validated by this role.
+            type: "dict"
+          php_admin_flag:
+            description: |
+              Pool-level INI directives, boolean values. YAML booleans
+              render as PHP-FPM `on` / `off`. Rendered as
+              `php_admin_flag[<name>] = <on|off>` inside the pool block.
+              Keys are open and are not validated by this role.
+            type: "dict"
+          env:
+            description: |
+              Environment variables exported to the workers of every pool.
+              Rendered as `env[<name>] = <value>` inside the pool block.
+              Keys are open and are not validated by this role.
+            type: "dict"
+
+      # FPM pools.
+      #
+      # PHP-FPM is the only PHP SAPI that has the concept of pools (a pool
+      # being one isolated runtime unit, with its own listener, user, and
+      # process manager). Pools are honored only when `"fpm"` is in
+      # `run_php_sapis`; otherwise the role emits a debug notice and the
+      # variable is ignored.
+      #
+      # The top-level dictionary is keyed by pool NAME, which becomes the
+      # filename `pool.d/<name>.conf`. Per-pool fields use the PHP-FPM
+      # directive names verbatim, INCLUDING the dots (`listen.owner`,
+      # `pm.max_children`, ...). YAML accepts dots in unquoted keys, so no
+      # quoting is needed.
+      #
+      # Each pool carries an optional `state: present | absent` (default
+      # `present`):
+      #
+      #   - `present` renders `pool.d/<name>.conf`.
+      #   - `absent` deletes `pool.d/<name>.conf` if it exists.
+      #
+      # The choice of `state` over `enabled` matches the Ansible idiom
+      # operators expect and reflects the fact that PHP-FPM has no native
+      # enabled/disabled pool concept. `state: absent` is especially
+      # important under the default `run_php_fpm_pools_delete_unmanaged:
+      # false`: simply removing a pool from inventory leaves its file
+      # untouched, so explicit removal of a role-managed (or distro-shipped)
+      # pool requires declaring it with `state: absent`.
+      #
+      # `extra_content` (string) per pool is appended verbatim after the
+      # structured render. INI last-wins applies: an `extra_content` line
+      # for the same key as a structured setting wins. Reserve it for cases
+      # the structured schema cannot express; the name signals "additive,
+      # may shadow".
+      run_php_fpm_pools:
+        description: |
+          PHP-FPM pools to manage. The dictionary is keyed by pool name,
+          which is also the filename used in `pool.d/<name>.conf`. Honored
+          only when `"fpm"` is in `run_php_sapis`.
+
+          Each pool entry is a dictionary whose keys are PHP-FPM directive
+          names verbatim (with dots intact, since YAML accepts dots in
+          unquoted keys). The role's templates use bracket notation to read
+          them (`pool['listen.owner']`).
+
+          Recognised per-pool fields:
+
+          - `state`: `present` (default) renders `pool.d/<name>.conf`.
+            `absent` deletes that file if present. Other fields are
+            allowed on absent pools but ignored, so a pool definition can
+            stay in inventory in a disabled state for fast re-enable.
+          - PHP-FPM directives such as `user`, `group`, `listen`,
+            `listen.owner`, `listen.group`, `listen.mode`, `pm`,
+            `pm.max_children`, `pm.start_servers`, `pm.min_spare_servers`,
+            `pm.max_spare_servers`, `pm.process_idle_timeout`, ... Names
+            are used 1:1 with what PHP-FPM expects. The role does not
+            validate the directive names.
+          - `php_admin_value`: dictionary of name to scalar value.
+            Rendered as `php_admin_value[name] = value`. Merges with
+            `run_php_fpm_pool_defaults.php_admin_value`; pool-level keys
+            win on conflict.
+          - `php_admin_flag`: dictionary of name to boolean. Rendered as
+            `php_admin_flag[name] = on|off`. Merges with the matching
+            default, pool-level wins.
+          - `env`: dictionary of environment variable names to values
+            exported to the pool's workers. Merges with the matching
+            default, pool-level wins.
+          - `extra_content`: raw string appended verbatim to the rendered
+            pool file after the structured render. INI last-wins applies.
+
+          Pools NOT listed in this dictionary are left on disk by default.
+          To enable strict declarative ownership of `pool.d/`, set
+          `run_php_fpm_pools_delete_unmanaged: true`. The default is
+          `false` because `pool.d/` is typically not solely owned by this
+          role (distro `www.conf`, operator hand-edits, and other tools
+          may write there).
+
+          Example:
+
+          ```yaml
+          run_php_fpm_pools:
+            www:
+              state: "present"
+              user: "www-data"
+              group: "www-data"
+              listen: "/run/php/php-fpm.sock"
+              listen.owner: "www-data"
+              listen.group: "www-data"
+              listen.mode: "0660"
+              pm: "dynamic"
+              pm.max_children: 50
+              pm.start_servers: 5
+              pm.min_spare_servers: 5
+              pm.max_spare_servers: 15
+              php_admin_value:
+                memory_limit: "256M"
+              php_admin_flag:
+                log_errors: true
+              env:
+                APP_ENV: "production"
+              extra_content: |
+                ; arbitrary additional directives
+            legacy-app:
+              state: "absent"
+              listen: "/run/php/legacy-app.sock"
+              pm: "static"
+              pm.max_children: 4
+          ```
+        type: "dict"
+        default: {}
+
+      run_php_fpm_pools_delete_unmanaged:
+        description: |
+          Controls whether the role removes pool files from `pool.d/` that
+          are not declared in `run_php_fpm_pools`.
+
+          When `true`, any `*.conf` file in `pool.d/` whose stem does not
+          match an entry in `run_php_fpm_pools` is deleted on every role
+          run. This treats `run_php_fpm_pools` as the single source of
+          truth for the pool directory.
+
+          When `false` (the default), unknown files are left untouched.
+          The default is conservative because `pool.d/` is typically not
+          solely owned by this role: distribution packages ship `www.conf`,
+          operators may hand-edit, and other tools may write there.
+          Explicit removal of a specific pool can still be done by listing
+          it with `state: "absent"` in `run_php_fpm_pools`.
+
+          Honored only when `"fpm"` is in `run_php_sapis`.
+        type: "bool"
+        default: false
+
+      # FPM service-level settings.
+      #
+      # `[global]` directives in `php-fpm.conf` are NOT placed in `pool.d/`:
+      # the `pool.d/` directory is semantically reserved for pool definitions,
+      # even though FPM technically accepts global directives there.
+      #
+      # The role uses `ansible.builtin.blockinfile` to maintain a managed
+      # block (marker `### {mark} ANSIBLE MANAGED BLOCK ###`) inside the
+      # distribution's main `php-fpm.conf` file. The path to that file is
+      # platform-dependent and lives in `vars/<platform>.yml`. The
+      # distribution `php-fpm.conf` is otherwise left untouched, and the
+      # role also defensively verifies that the `include=` line for
+      # `pool.d/` is present (adding it if it is missing).
+      #
+      # Honored only when `"fpm"` is in `run_php_sapis`.
+      run_php_fpm_service_settings:
+        description: |
+          PHP-FPM service-level settings, written into the `[global]`
+          section of the distribution's main `php-fpm.conf` via
+          `ansible.builtin.blockinfile`. The role does not overwrite the
+          distribution file, only the managed block inside it.
+
+          Top-level keys correspond to PHP-FPM `php-fpm.conf` sections.
+          The only currently recognised section is `global`. Inside that
+          dictionary, keys are PHP-FPM directive names and values are
+          their scalar values. Keys are used 1:1 with what PHP-FPM expects
+          (dots intact, no quoting required by YAML).
+
+          Honored only when `"fpm"` is in `run_php_sapis`. Setting it
+          without FPM in the SAPI list produces a debug notice and the
+          variable is ignored.
+
+          Example:
+
+          ```yaml
+          run_php_fpm_service_settings:
+            global:
+              error_log: "/var/log/php-fpm/error.log"
+              log_level: "notice"
+              emergency_restart_threshold: 10
+              emergency_restart_interval: "1m"
+              process_control_timeout: "10s"
+          ```
+        type: "dict"
+        default: {}
+        options:
+          global:
+            description: |
+              `[global]` directives of `php-fpm.conf`. Keys are PHP-FPM
+              directive names, values are their scalar values. Keys are
+              not validated by this role.
+            type: "dict"
