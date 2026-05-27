@@ -83,7 +83,7 @@ __run_php_sapi_packages_map:
 
 # Always-on / built-in extensions on RHEL family. These ship with the
 # `php-common` package or are PHP-core built-ins.
-__run_php_extensions_builtin:
+__run_php_extensions_builtin_defaults:
   - "core"
   - "date"
   - "hash"
@@ -125,7 +125,7 @@ __run_php_extensions_builtin:
 #     package names on EL10; on EL9 / Fedora the suffix-less names may also
 #     exist. We list the suffixed names here as the EL10 baseline and rely on
 #     the package manager to pick the right one from the configured repos.
-__run_php_extensions_map_resources:
+__run_php_extensions_map_resources_defaults:
   # --- Database ---
   pgsql:
     packages:

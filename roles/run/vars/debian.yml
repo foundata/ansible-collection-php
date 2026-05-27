@@ -33,7 +33,7 @@ __run_php_sapi_packages_map:
 # no extra package. These appear in mods-available/ after a fresh
 # php<ver>-cli / php<ver>-fpm install (php<ver>-common ships them) plus the
 # always-on PHP built-ins.
-__run_php_extensions_builtin:
+__run_php_extensions_builtin_defaults:
   # Always-on PHP built-ins
   - "core"
   - "date"
@@ -77,7 +77,7 @@ __run_php_extensions_builtin:
 #   - php<ver>-odbc ships both odbc and pdo_odbc
 #   - php<ver>-xml is the umbrella for xml, simplexml, xmlreader,
 #     xmlwriter, dom, xsl
-__run_php_extensions_map_resources:
+__run_php_extensions_map_resources_defaults:
   # --- Database ---
   pgsql:
     packages:

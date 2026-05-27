@@ -131,7 +131,19 @@ __run_php_sapis_forbidden:
 # Unknown extension short names in run_php_extensions_enabled are hard
 # failures; the failure message lists the keys of this map plus the
 # builtins below.
-__run_php_extensions_map_resources: {}
+#
+# Populated via the defaults/overwrite layering below: os_family vars files
+# (debian.yml, redhat.yml, suse.yml) define the base set in
+# `..._defaults`; per-version vars files (e.g. ubuntu_26.yml when PHP 8.5
+# drops the standalone php-opcache package) override individual entries in
+# `..._overwrite`. The effective map is the deep-merge of the two.
+__run_php_extensions_map_resources_defaults: {}
+__run_php_extensions_map_resources_overwrite: {}
+__run_php_extensions_map_resources: >-
+  {{
+    __run_php_extensions_map_resources_defaults
+    | ansible.builtin.combine(__run_php_extensions_map_resources_overwrite, recursive=true)
+  }}
 
 
 # List of extension short names that are part of the base PHP installation
@@ -140,7 +152,16 @@ __run_php_extensions_map_resources: {}
 # role does not try to install anything for them. Populated by platform
 # vars files. Typical entries include core, date, pcre, reflection,
 # spl, standard, plus distribution-specific builtins.
-__run_php_extensions_builtin: []
+#
+# Same defaults/overwrite layering as `__run_php_extensions_map_resources`.
+__run_php_extensions_builtin_defaults: []
+__run_php_extensions_builtin_overwrite: []
+__run_php_extensions_builtin: >-
+  {{
+    (__run_php_extensions_builtin_defaults + __run_php_extensions_builtin_overwrite)
+    | ansible.builtin.unique
+    | ansible.builtin.list
+  }}
 
 
 # List of package names to be installed when run_php_state is "present".

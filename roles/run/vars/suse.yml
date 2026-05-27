@@ -37,7 +37,7 @@ __run_php_sapi_packages_map:
 # PHP-core builtins; openSUSE packages even traditionally bundled
 # extensions (ctype, calendar, iconv, posix, sockets, ...) separately, so
 # those are handled via the install map instead of the builtin list.
-__run_php_extensions_builtin:
+__run_php_extensions_builtin_defaults:
   - "core"
   - "date"
   - "hash"
@@ -65,7 +65,7 @@ __run_php_extensions_builtin:
 #   - `php8-xdebug`, `php8-memcached` and `php8-tideways` are not in the
 #     stock Leap 16 repositories. Users who need them must add a suitable
 #     PECL/devel repo before invoking this role.
-__run_php_extensions_map_resources:
+__run_php_extensions_map_resources_defaults:
   # --- Database ---
   pgsql:
     packages:

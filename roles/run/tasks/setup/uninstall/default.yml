@@ -2,10 +2,48 @@
 
 ---
 
-- name: "Setup | Uninstall | Remove packages"
+# `__run_php_packages_uninstall` is deliberately the union of every SAPI and
+# every extension package the role knows about on this platform, not just
+# those that the current variable set asked to install. That makes the
+# uninstall path symmetric and robust regardless of how `run_php_sapis` /
+# `run_php_extensions_enabled` happen to be set at removal time.
+#
+# Most backends (apt, zypper, dnf4) silently treat "no such installed
+# package" as success when called with `state: absent`. Fedora 43+ uses
+# dnf5, which treats it as a hard failure. To stay portable, we filter the
+# uninstall list to only packages actually present on the host before
+# handing it to the package module.
+
+- name: "Setup | Uninstall | Install python3-rpm (and python3-libdnf5 on Fedora) for package_facts"
   ansible.builtin.package:
-    name: "{{ __run_php_packages_uninstall }}"
+    name: >-
+      {{
+        ['python3-rpm']
+        + (['python3-libdnf5']
+           if (ansible_facts['distribution'] | ansible.builtin.lower) == 'fedora'
+           else [])
+      }}
+    state: "present"
+  when:
+    - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
+
+
+- name: "Setup | Uninstall | Gather package facts to determine which managed packages are actually installed"
+  ansible.builtin.package_facts:
+    manager: "auto"
+
+
+- name: "Setup | Uninstall | Remove packages (filtered to those actually installed)"
+  ansible.builtin.package:
+    name: "{{ __run_php_packages_uninstall_installed }}"
     state: "absent"
+  vars:
+    __run_php_packages_uninstall_installed: >-
+      {{
+        (__run_php_packages_uninstall | ansible.builtin.default([]))
+        | ansible.builtin.select('in', ansible_facts['packages'].keys())
+        | ansible.builtin.list
+      }}
   when:
     - __run_php_packages_uninstall is ansible.builtin.defined
-    - (__run_php_packages_uninstall | ansible.builtin.length) > 0
+    - (__run_php_packages_uninstall_installed | ansible.builtin.length) > 0
