@@ -10,7 +10,7 @@
 
 - name: "Service | Default | Ensure service state: {{ __run_php_fpm_service_name }}"
   ansible.builtin.service:
-    name: "{{ __run_nginx_nginx_servicename }}"
+    name: "{{ __run_php_fpm_service_name }}"
     state: "{{ 'started' if run_php_fpm_service_state in ['enabled', 'running'] else 'stopped' if run_php_fpm_service_state == 'disabled' }}"
     enabled: "{{ true if run_php_fpm_service_state == 'enabled' else false if run_php_fpm_service_state in ['disabled', 'running'] }}"
   when:

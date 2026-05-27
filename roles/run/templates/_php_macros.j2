@@ -27,8 +27,8 @@ Off
 
 
 {#-
-Render the directives of a single INI section as `name = value` lines.
-`directives` is a flat dictionary.
+Render the directives of a single INI section as "name = value" lines.
+"directives" is a flat dictionary.
 -#}
 {%- macro render_ini_directives(directives) -%}
 {%- for name, value in directives.items() %}
@@ -39,10 +39,10 @@ Render the directives of a single INI section as `name = value` lines.
 
 {#-
 Render a full INI scope (the structure under
-`run_php_settings.{shared,fpm,cli}`):
-  - top-level keys other than `extra_content` are INI section names;
+"run_php_settings.{shared,fpm,cli}"):
+  - top-level keys other than "extra_content" are INI section names;
   - each section's value is a flat dictionary of directives;
-  - the optional `extra_content` key (string) is appended verbatim at the end.
+  - the optional "extra_content" key (string) is appended verbatim at the end.
 -#}
 {%- macro render_ini_scope(scope) -%}
 {%- for section_name, section in scope.items() if section_name != 'extra_content' -%}
@@ -58,9 +58,9 @@ Render a full INI scope (the structure under
 
 {#-
 Render a single per-extension block (the structure under
-`run_php_extension_settings.{shared,fpm,cli}.<ext>`):
-  - `extension` is the extension short name (used as the INI section header);
-  - `directives` is a flat dictionary of directives.
+"run_php_extension_settings.{shared,fpm,cli}.<ext>"):
+  - "extension" is the extension short name (used as the INI section header);
+  - "directives" is a flat dictionary of directives.
 -#}
 {%- macro render_ini_extension_block(extension, directives) -%}
 [{{ extension }}]
@@ -88,8 +88,8 @@ off
 
 
 {#-
-Render `[global]` directives for php-fpm.conf as `name = value` lines.
-`directives` is a flat dictionary.
+Render "[global]" directives for php-fpm.conf as "name = value" lines.
+"directives" is a flat dictionary.
 -#}
 {%- macro render_fpm_directives(directives) -%}
 {%- for name, value in directives.items() %}
@@ -101,23 +101,23 @@ Render `[global]` directives for php-fpm.conf as `name = value` lines.
 {#-
 Render a single PHP-FPM pool block.
 
-`name`      : pool name (used as the [section] header and the .conf filename).
-`pool`      : merged pool dictionary (defaults deep-merged with the user's
+"name"      : pool name (used as the [section] header and the .conf filename).
+"pool"      : merged pool dictionary (defaults deep-merged with the user's
               per-pool entry; per-pool keys win on conflict).
 
-Recognised keys inside `pool`:
-  - any flat scalar key (`user`, `group`, `listen`, `listen.owner`,
-    `pm`, `pm.max_children`, ...) renders as `key = value`.
-  - `php_admin_value`, `php_value`: dicts rendered as `php_admin_value[k] = v`
-    and `php_value[k] = v` respectively (scalar values).
-  - `php_admin_flag`, `php_flag`: dicts rendered as `php_admin_flag[k] = on|off`
-    and `php_flag[k] = on|off` respectively.
-  - `env`: dict rendered as `env[k] = v` (scalar values).
-  - `extra_content`: string appended verbatim at the end of the pool block.
-  - `state`: ignored here (handled by the calling task).
+Recognised keys inside "pool":
+  - any flat scalar key ("user", "group", "listen", "listen.owner",
+    "pm", "pm.max_children", ...) renders as "key = value".
+  - "php_admin_value", "php_value": dicts rendered as "php_admin_value[k] = v"
+    and "php_value[k] = v" respectively (scalar values).
+  - "php_admin_flag", "php_flag": dicts rendered as "php_admin_flag[k] = on|off"
+    and "php_flag[k] = on|off" respectively.
+  - "env": dict rendered as "env[k] = v" (scalar values).
+  - "extra_content": string appended verbatim at the end of the pool block.
+  - "state": ignored here (handled by the calling task).
 
 Keys are emitted in their iteration order, with the bracket directives at the
-end (right before `extra_content`) so the resulting file matches the layout of
+end (right before "extra_content") so the resulting file matches the layout of
 most stock pool examples.
 -#}
 {%- macro render_fpm_pool(name, pool) -%}
