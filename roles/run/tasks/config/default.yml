@@ -227,7 +227,7 @@
 - name: "Config | Default | Manage [global] block inside php-fpm.conf"
   ansible.builtin.blockinfile:
     path: "{{ __run_php_config_fpm_main_file_path }}"
-    marker: "; ### {mark} ANSIBLE MANAGED BLOCK ###"
+    marker: ";;; {mark} ANSIBLE MANAGED BLOCK ;;;"
     insertafter: '^\[global\]'
     block: |-
       {% for name, value in run_php_fpm_service_settings['global'].items() -%}
