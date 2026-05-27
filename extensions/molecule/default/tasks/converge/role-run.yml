@@ -1,0 +1,176 @@
+# Execute the collection role "run" against all driver-created instances.
+#
+# Scope: cross-platform portable parameters only. The per-SAPI "fpm" / "cli"
+# INI scopes are deliberately NOT exercised here because they hard-fail on
+# shared-dir platforms (RHEL-like, SUSE-like) and would prevent this converge
+# from running on the full platform matrix. We will find a solution for this
+# laster (maye a dedicated scenario or two separate role calls).
+
+# The shared Molecule converge playbook runs with "gather_facts: false", but
+# we need ansible_facts['os_family'] to select the platform-stock FPM
+# service user for the test pool (openSUSE's FPM build rejects "user = root"
+# outright with "please specify user and group other than root").
+#
+# This tasks prevents testing whether the role itself verifies these facts'
+# availability (this disadvantage had to be accepted; however, it was verified
+# that the role really does reload the facts when needed)
+- name: "Molecule | Converge | Gather facts for platform-specific defaults"
+  ansible.builtin.setup:
+    gather_subset:
+      - "!min"
+      - "distribution"
+
+
+- name: "Molecule | Converge | Set platform-specific FPM service user"
+  ansible.builtin.set_fact:
+    __testing_fpm_user: >-
+      {{
+        {
+          'Debian': 'www-data',
+          'RedHat': 'apache',
+          'Suse': 'wwwrun',
+        }[ansible_facts['os_family']]
+      }}
+
+
+- name: "Molecule | Converge | Store run_php_* role parameters in __testing_state"
+  ansible.builtin.include_tasks:
+    file: "../tasks/state_update.yml"
+  vars:
+    __testing_state_update:
+      run_php_state: "present"
+
+      # Both SAPIs - exercises install of the SAPI packages, per-SAPI
+      # conf.d/ rendering on Debian-like and the single shared INI dir on
+      # RHEL/SUSE-like.
+      run_php_sapis:
+        - "fpm"
+        - "cli"
+
+      # "iconv" is intentional: it is a builtin on Debian-like and RHEL-like
+      # (no package install) but a separate "php8-iconv" package on openSUSE
+      # Leap - exercises both the "no install needed" and the "install
+      # platform-specific package" codepaths from "__run_php_extensions_*".
+      # "pgsql" exercises the "pdo_pgsql" umbrella package on Debian and the
+      # "php-pgsql" package on RHEL. "mbstring", "intl", "bcmath", "opcache"
+      # are mainstream extensions present on every supported distribution.
+      run_php_extensions_enabled:
+        - "opcache"
+        - "mbstring"
+        - "pgsql"
+        - "intl"
+        - "bcmath"
+        - "iconv"
+
+      # Leave the role's best-effort symlink cleanup off for the baseline
+      # test - it has side effects on Debian-like that are easier to verify
+      # in a dedicated scenario.
+      run_php_extensions_disable_unmanaged: false
+
+      # "shared" scope only: portable across every supported platform.
+      # Exercises sectioned INI rendering ("[PHP]"), scalar / bool / string
+      # value rendering, and the role-managed drop-in (99-managed.ini) being
+      # placed in the right directory per platform kind.
+      run_php_settings:
+        shared:
+          PHP:
+            date.timezone: "UTC"
+            expose_php: false
+            memory_limit: "256M"
+            max_execution_time: 30
+
+      # Per-extension "shared" scope. Exercises the per-extension drop-in
+      # render path (99-managed-opcache.ini) and the merge with
+      # "run_php_settings.shared".
+      run_php_extension_settings:
+        shared:
+          opcache:
+            opcache.memory_consumption: 256
+            opcache.max_accelerated_files: 20000
+            opcache.enable_cli: 0
+
+      # Pool defaults applied across every pool. Exercises the deep-merge of
+      # defaults with per-pool entries ("memory_limit" gets overridden by
+      # the "testpool" pool below).
+      run_php_fpm_pool_defaults:
+        php_admin_value:
+          upload_max_filesize: "64M"
+          post_max_size: "64M"
+          memory_limit: "256M"
+        php_admin_flag:
+          display_errors: false
+          log_errors: true
+        php_value:
+          default_socket_timeout: "60"
+        php_flag:
+          short_open_tag: false
+        env:
+          APP_ENV: "production"
+
+      # Two pools to exercise both render paths:
+      #   - "testpool": state=present, overrides one default value, includes
+      #     "extra_content" verbatim append. Uses the platform-stock FPM
+      #     service user picked above (openSUSE's FPM hard-rejects
+      #     "user = root").
+      #   - "absent-example": state=absent, exercises the deletion path
+      #     (it never exists on disk, so the task is a no-op idempotently).
+      run_php_fpm_pools:
+        testpool:
+          state: "present"
+          user: "{{ __testing_fpm_user }}"
+          group: "{{ __testing_fpm_user }}"
+          listen: "/run/php-fpm-testpool.sock"
+          listen.owner: "{{ __testing_fpm_user }}"
+          listen.group: "{{ __testing_fpm_user }}"
+          listen.mode: "0660"
+          pm: "dynamic"
+          pm.max_children: 5
+          pm.start_servers: 2
+          pm.min_spare_servers: 1
+          pm.max_spare_servers: 3
+          php_admin_value:
+            memory_limit: "512M" # overrides the default
+          extra_content: |
+            ; appended verbatim by the role
+            ; access.log = /var/log/php-fpm-testpool.access.log
+        absent-example:
+          state: "absent"
+          listen: "/run/php-fpm-absent.sock"
+
+      # Leave existing distribution "www.conf" (and any other unmanaged
+      # pool file) in place - the role's default. A dedicated scenario can
+      # flip this to "true" to exercise strict declarative ownership.
+      run_php_fpm_pools_delete_unmanaged: false
+
+      # Exercises the blockinfile-managed "[global]" block inside
+      # php-fpm.conf on every platform.
+      run_php_fpm_service_settings:
+        global:
+          log_level: "notice"
+          emergency_restart_threshold: 10
+          emergency_restart_interval: "1m"
+          process_control_timeout: "10s"
+
+      # Exercises the service handler at the end of the run.
+      run_php_fpm_service_state: "enabled"
+
+
+- name: "Molecule | Converge | Set run_php_* parameters as facts from __testing_state"
+  ansible.builtin.set_fact:
+    "{{ item['key'] }}": "{{ item['value'] }}"
+  loop: >-
+    {{
+      (__testing_state | ansible.builtin.default({}, true))
+      | ansible.builtin.dict2items
+      | ansible.builtin.selectattr('key', 'match', '^run_php_')
+      | ansible.builtin.list
+    }}
+
+
+- name: "Molecule | Converge | Include the foundata.php.run role"
+  ansible.builtin.include_role:
+    name: "foundata.php.run"
+  # vars: All run_php_* variables are set as facts and passed this way to
+  #       the role. This enables persisting the values in __testing_state
+  #       and restoring them in later stages (e.g. verify) without manually
+  #       duplicating data across playbooks.

@@ -1,0 +1,390 @@
+# Check collection role "run" outcomes.
+
+- name: "Molecule | Verify | Initialize the foundata.php.run role (without actually running it; get and expose variables)"
+  ansible.builtin.include_role:
+    name: "foundata.php.run"
+    tasks_from: "init"
+    public: true
+
+
+## Preparation
+
+- name: "Molecule | Verify | Set run_php_* and __testing_* variables as facts from __testing_state"
+  ansible.builtin.set_fact:
+    "{{ item['key'] }}": "{{ item['value'] }}"
+  loop: >-
+    {{
+      (__testing_state | ansible.builtin.default({}, true))
+      | ansible.builtin.dict2items
+      | ansible.builtin.selectattr('key', 'match', '^(run_php_|__testing_)')
+      | ansible.builtin.list
+    }}
+
+
+# Reconstruct the same INI-target directory list the role's config phase
+# computes in tasks/config/default.yml so verify can iterate the same set
+# of locations to check.
+- name: "Molecule | Verify | Set test-time facts (INI target directories)"
+  ansible.builtin.set_fact:
+    __testing_ini_target_dirs: >-
+      {{
+        (([__run_php_config_ini_fpm_dir_path]
+            if (__run_php_has_per_sapi_ini and ('fpm' in run_php_sapis)) else [])
+         + ([__run_php_config_ini_cli_dir_path]
+            if (__run_php_has_per_sapi_ini and ('cli' in run_php_sapis)) else [])
+         + ([__run_php_config_ini_shared_dir_path]
+            if (not __run_php_has_per_sapi_ini) else []))
+      }}
+
+
+# Re-derive the platform-stock FPM service user that the converge picked, so
+# the pool-content assertions match what was actually rendered.
+- name: "Molecule | Verify | Set platform-specific FPM service user"
+  ansible.builtin.set_fact:
+    __testing_fpm_user: >-
+      {{
+        {
+          'Debian': 'www-data',
+          'RedHat': 'apache',
+          'Suse': 'wwwrun',
+        }[ansible_facts['os_family']]
+      }}
+
+
+## Shared INI drop-in file
+
+- name: "Molecule | Verify | Check if shared INI drop-in exists per target"
+  ansible.builtin.stat:
+    path: "{{ __testing_target_dir }}/{{ __run_php_config_ini_dropin_filename }}"
+  register: "__testing_shared_dropin_stat"
+  loop: "{{ __testing_ini_target_dirs }}"
+  loop_control:
+    loop_var: "__testing_target_dir"
+
+
+- name: "Molecule | Verify | Assert shared INI drop-in exists per target"
+  ansible.builtin.assert:
+    that:
+      - item['stat']['exists']
+    fail_msg: >-
+      The shared INI drop-in '{{ item['__testing_target_dir'] }}/{{ __run_php_config_ini_dropin_filename }}'
+      does not exist.
+    success_msg: >-
+      The shared INI drop-in '{{ item['__testing_target_dir'] }}/{{ __run_php_config_ini_dropin_filename }}'
+      exists.
+  loop: "{{ __testing_shared_dropin_stat['results'] }}"
+  loop_control:
+    label: "{{ item['__testing_target_dir'] }}"
+
+
+- name: "Molecule | Verify | Read shared INI drop-in content (first target as representative)"
+  ansible.builtin.slurp:
+    src: "{{ __testing_ini_target_dirs[0] }}/{{ __run_php_config_ini_dropin_filename }}"
+  register: "__testing_shared_dropin_content"
+
+
+- name: "Molecule | Verify | Set shared INI drop-in content as fact"
+  ansible.builtin.set_fact:
+    __testing_shared_dropin_decoded: >-
+      {{ __testing_shared_dropin_content['content'] | ansible.builtin.b64decode }}
+
+
+- name: "Molecule | Verify | Assert shared INI drop-in contains expected directives"
+  ansible.builtin.assert:
+    that:
+      - "'[PHP]' in __testing_shared_dropin_decoded"
+      - "'date.timezone = \"UTC\"' in __testing_shared_dropin_decoded"
+      - "'expose_php = Off' in __testing_shared_dropin_decoded"
+      - "'memory_limit = \"256M\"' in __testing_shared_dropin_decoded"
+      - "'max_execution_time = 30' in __testing_shared_dropin_decoded"
+    fail_msg: >-
+      The shared INI drop-in is missing expected directives.
+      Actual content: {{ __testing_shared_dropin_decoded }}
+    success_msg: >-
+      The shared INI drop-in contains all expected directives.
+
+
+## Per-extension INI drop-in file (opcache)
+
+- name: "Molecule | Verify | Check if opcache extension INI drop-in exists per target"
+  ansible.builtin.stat:
+    path: >-
+      {{ __testing_target_dir }}/{{
+        __run_php_config_ini_extension_dropin_filename_format
+        | ansible.builtin.regex_replace('\{extension\}', 'opcache')
+      }}
+  register: "__testing_opcache_dropin_stat"
+  loop: "{{ __testing_ini_target_dirs }}"
+  loop_control:
+    loop_var: "__testing_target_dir"
+
+
+- name: "Molecule | Verify | Assert opcache extension INI drop-in exists per target"
+  ansible.builtin.assert:
+    that:
+      - item['stat']['exists']
+    fail_msg: >-
+      The opcache extension INI drop-in does not exist at '{{ item['stat']['path'] }}'.
+    success_msg: >-
+      The opcache extension INI drop-in exists at '{{ item['stat']['path'] }}'.
+  loop: "{{ __testing_opcache_dropin_stat['results'] }}"
+  loop_control:
+    label: "{{ item['stat']['path'] }}"
+
+
+- name: "Molecule | Verify | Read opcache extension INI drop-in content (first target as representative)"
+  ansible.builtin.slurp:
+    src: >-
+      {{ __testing_ini_target_dirs[0] }}/{{
+        __run_php_config_ini_extension_dropin_filename_format
+        | ansible.builtin.regex_replace('\{extension\}', 'opcache')
+      }}
+  register: "__testing_opcache_dropin_content"
+
+
+- name: "Molecule | Verify | Set opcache extension INI drop-in content as fact"
+  ansible.builtin.set_fact:
+    __testing_opcache_dropin_decoded: >-
+      {{ __testing_opcache_dropin_content['content'] | ansible.builtin.b64decode }}
+
+
+- name: "Molecule | Verify | Assert opcache extension INI drop-in contains expected directives"
+  ansible.builtin.assert:
+    that:
+      - "'[opcache]' in __testing_opcache_dropin_decoded"
+      - "'opcache.memory_consumption = 256' in __testing_opcache_dropin_decoded"
+      - "'opcache.max_accelerated_files = 20000' in __testing_opcache_dropin_decoded"
+      - "'opcache.enable_cli = 0' in __testing_opcache_dropin_decoded"
+    fail_msg: >-
+      The opcache extension INI drop-in is missing expected directives.
+      Actual content: {{ __testing_opcache_dropin_decoded }}
+    success_msg: >-
+      The opcache extension INI drop-in contains all expected directives.
+
+
+## FPM [global] block in php-fpm.conf
+
+- name: "Molecule | Verify | Read main php-fpm.conf"
+  ansible.builtin.slurp:
+    src: "{{ __run_php_config_fpm_main_file_path }}"
+  register: "__testing_fpm_main_content"
+
+
+- name: "Molecule | Verify | Set main php-fpm.conf content as fact"
+  ansible.builtin.set_fact:
+    __testing_fpm_main_decoded: >-
+      {{ __testing_fpm_main_content['content'] | ansible.builtin.b64decode }}
+
+
+- name: "Molecule | Verify | Assert [global] managed block is present in php-fpm.conf"
+  ansible.builtin.assert:
+    that:
+      - "';;; BEGIN ANSIBLE MANAGED BLOCK ;;;' in __testing_fpm_main_decoded"
+      - "';;; END ANSIBLE MANAGED BLOCK ;;;' in __testing_fpm_main_decoded"
+      - "'log_level = notice' in __testing_fpm_main_decoded"
+      - "'emergency_restart_threshold = 10' in __testing_fpm_main_decoded"
+      - "'emergency_restart_interval = 1m' in __testing_fpm_main_decoded"
+      - "'process_control_timeout = 10s' in __testing_fpm_main_decoded"
+    fail_msg: >-
+      The php-fpm.conf [global] managed block is missing or incomplete.
+      Actual content: {{ __testing_fpm_main_decoded }}
+    success_msg: >-
+      The php-fpm.conf [global] managed block is present and contains all expected directives.
+
+
+## FPM pool files
+
+- name: "Molecule | Verify | Check if testpool pool file exists"
+  ansible.builtin.stat:
+    path: "{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf"
+  register: "__testing_testpool_stat"
+
+
+- name: "Molecule | Verify | Assert testpool pool file exists"
+  ansible.builtin.assert:
+    that:
+      - __testing_testpool_stat['stat']['exists']
+    fail_msg: >-
+      The testpool pool file '{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf' does not exist.
+    success_msg: >-
+      The testpool pool file '{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf' exists.
+
+
+- name: "Molecule | Verify | Check that absent-example pool file does NOT exist"
+  ansible.builtin.stat:
+    path: "{{ __run_php_config_fpm_pool_dir_path }}/absent-example.conf"
+  register: "__testing_absent_pool_stat"
+
+
+- name: "Molecule | Verify | Assert absent-example pool file does NOT exist"
+  ansible.builtin.assert:
+    that:
+      - not __testing_absent_pool_stat['stat']['exists']
+    fail_msg: >-
+      The absent-example pool file
+      '{{ __run_php_config_fpm_pool_dir_path }}/absent-example.conf' exists, but should be absent.
+    success_msg: >-
+      The absent-example pool file
+      '{{ __run_php_config_fpm_pool_dir_path }}/absent-example.conf' does not exist (as expected).
+
+
+- name: "Molecule | Verify | Read testpool pool file content"
+  ansible.builtin.slurp:
+    src: "{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf"
+  register: "__testing_testpool_content"
+
+
+- name: "Molecule | Verify | Set testpool pool file content as fact"
+  ansible.builtin.set_fact:
+    __testing_testpool_decoded: >-
+      {{ __testing_testpool_content['content'] | ansible.builtin.b64decode }}
+
+
+- name: "Molecule | Verify | Assert testpool pool file contains expected directives"
+  ansible.builtin.assert:
+    that:
+      # Section header and flat directives
+      - "'[testpool]' in __testing_testpool_decoded"
+      - ('user = ' ~ __testing_fpm_user) in __testing_testpool_decoded
+      - ('group = ' ~ __testing_fpm_user) in __testing_testpool_decoded
+      - "'listen = /run/php-fpm-testpool.sock' in __testing_testpool_decoded"
+      - "'pm = dynamic' in __testing_testpool_decoded"
+      - "'pm.max_children = 5' in __testing_testpool_decoded"
+      # Pool-level override of pool_defaults (memory_limit)
+      - "'php_admin_value[memory_limit] = 512M' in __testing_testpool_decoded"
+      # Inherited pool_defaults
+      - "'php_admin_value[upload_max_filesize] = 64M' in __testing_testpool_decoded"
+      - "'php_admin_value[post_max_size] = 64M' in __testing_testpool_decoded"
+      - "'php_admin_flag[display_errors] = off' in __testing_testpool_decoded"
+      - "'php_admin_flag[log_errors] = on' in __testing_testpool_decoded"
+      - "'php_value[default_socket_timeout] = 60' in __testing_testpool_decoded"
+      - "'php_flag[short_open_tag] = off' in __testing_testpool_decoded"
+      - "'env[APP_ENV] = production' in __testing_testpool_decoded"
+      # extra_content appended verbatim
+      - "'; appended verbatim by the role' in __testing_testpool_decoded"
+    fail_msg: >-
+      The testpool pool file is missing expected directives.
+      Actual content: {{ __testing_testpool_decoded }}
+    success_msg: >-
+      The testpool pool file contains all expected directives.
+
+
+## Extension package installation
+
+- name: "Molecule | Verify | Install python3-rpm (and python3-libdnf5 on Fedora) for package_facts"
+  ansible.builtin.package:
+    name: >-
+      {{
+        ['python3-rpm']
+        + (['python3-libdnf5']
+           if (ansible_facts['distribution'] | ansible.builtin.lower) == 'fedora'
+           else [])
+      }}
+    state: "present"
+  when:
+    - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
+
+
+- name: "Molecule | Verify | Gather package facts"
+  ansible.builtin.package_facts:
+    manager: "auto"
+
+
+- name: "Molecule | Verify | Assert mainstream extension packages are installed"
+  ansible.builtin.assert:
+    that:
+      - (__run_php_package_prefix ~ 'mbstring') in ansible_facts['packages']
+      - (__run_php_package_prefix ~ 'intl') in ansible_facts['packages']
+      - (__run_php_package_prefix ~ 'bcmath') in ansible_facts['packages']
+    fail_msg: >-
+      One or more expected extension packages are not installed.
+      Expected (prefix '{{ __run_php_package_prefix }}'): mbstring, intl, bcmath.
+    success_msg: >-
+      All expected mainstream extension packages are installed.
+
+
+## PHP CLI works and reports the expected extensions
+
+- name: "Molecule | Verify | Run 'php -m' to list loaded CLI extensions"
+  ansible.builtin.command:
+    cmd: "php -m"
+  register: "__testing_php_modules"
+  changed_when: false
+
+
+- name: "Molecule | Verify | Assert mainstream extensions are loaded in CLI"
+  ansible.builtin.assert:
+    that:
+      - "'mbstring' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
+      - "'intl' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
+      - "'pgsql' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
+      - "'bcmath' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
+      - "'iconv' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
+    fail_msg: >-
+      One or more expected extensions are missing from 'php -m':
+      {{ __testing_php_modules['stdout_lines'] }}
+    success_msg: >-
+      All expected extensions are loaded in CLI.
+
+
+## PHP CLI effective settings (verifies the shared INI drop-in is actually read)
+
+- name: "Molecule | Verify | Read effective CLI ini settings via php -r"
+  ansible.builtin.command:
+    cmd: "php -r 'echo ini_get(\"date.timezone\") . \"|\" . ini_get(\"expose_php\") . \"|\" . ini_get(\"memory_limit\");'"
+  register: "__testing_php_ini"
+  changed_when: false
+
+
+- name: "Molecule | Verify | Assert CLI effective ini settings reflect run_php_settings"
+  ansible.builtin.assert:
+    that:
+      - "'UTC|' in __testing_php_ini['stdout']"
+      - "'|256M' in __testing_php_ini['stdout']"
+      # ini_get returns '' for boolean-false directives; expose_php=Off -> ''
+      - "'UTC||' in __testing_php_ini['stdout']"
+    fail_msg: >-
+      CLI effective ini settings do not match run_php_settings.
+      Got: {{ __testing_php_ini['stdout'] }}
+      Expected: date.timezone=UTC, expose_php='' (false), memory_limit=256M
+    success_msg: >-
+      CLI effective ini settings reflect run_php_settings.
+
+
+## PHP-FPM service state
+
+- name: "Molecule | Verify | Gather service facts"
+  ansible.builtin.service_facts:
+
+
+- name: "Molecule | Verify | Assert PHP-FPM service is running"
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['services'][__run_php_fpm_service_name] is ansible.builtin.defined
+      - ansible_facts['services'][__run_php_fpm_service_name]['state'] == 'running'
+      - ansible_facts['services'][__run_php_fpm_service_name]['status'] == 'enabled'
+    fail_msg: >-
+      PHP-FPM service '{{ __run_php_fpm_service_name }}' is not running and enabled.
+      Actual state: {{ ansible_facts['services'][__run_php_fpm_service_name] | ansible.builtin.default('not present') }}
+    success_msg: >-
+      PHP-FPM service '{{ __run_php_fpm_service_name }}' is running and enabled.
+
+
+## testpool socket exists after FPM start
+
+- name: "Molecule | Verify | Check that the testpool FPM listen socket exists"
+  ansible.builtin.stat:
+    path: "/run/php-fpm-testpool.sock"
+  register: "__testing_testpool_socket_stat"
+
+
+- name: "Molecule | Verify | Assert the testpool FPM listen socket exists and is a socket"
+  ansible.builtin.assert:
+    that:
+      - __testing_testpool_socket_stat['stat']['exists']
+      - __testing_testpool_socket_stat['stat']['issock']
+    fail_msg: >-
+      The testpool FPM listen socket '/run/php-fpm-testpool.sock' does not exist or is not a socket.
+      stat: {{ __testing_testpool_socket_stat['stat'] }}
+    success_msg: >-
+      The testpool FPM listen socket '/run/php-fpm-testpool.sock' exists and is a socket.

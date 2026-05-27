@@ -1,0 +1,7 @@
+# Execute the collection role "run" against all driver-created instances (cleanup / absent)
+
+- name: "Molecule | Cleanup | Include the foundata.php.run role"
+  ansible.builtin.include_role:
+    name: "foundata.php.run"
+  vars:
+    run_php_state: "absent"
