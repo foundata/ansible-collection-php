@@ -2,19 +2,21 @@
 
 ---
 
-# `__run_php_packages_uninstall` is deliberately the union of every SAPI and
-# every extension package the role knows about on this platform, not just
-# those that the current variable set asked to install. That makes the
-# uninstall path symmetric and robust regardless of how `run_php_sapis` /
-# `run_php_extensions_enabled` happen to be set at removal time.
+# The role enumerates every SAPI + extension package it could have installed so
+# the absent state cleans up regardless of variable choices:
+# __run_php_packages_uninstall is the union of every SAPI and every extension
+# package the role knows about on this platform, not just those that the current
+# variable set asked to install. That makes the uninstall path symmetric and
+# robust regardless of how run_php_sapis / run_php_extensions_enabled happen to
+# be set at removal time.
 #
-# Most backends (apt, zypper, dnf4) silently treat "no such installed
-# package" as success when called with `state: absent`. Fedora 43+ uses
-# dnf5, which treats it as a hard failure. To stay portable, we filter the
-# uninstall list to only packages actually present on the host before
-# handing it to the package module.
+# On Fedora 43/44 the dnf5 backend handles missing-on-absent fine in isolation,
+# but mixing missing entries with installed ones triggers an unrelated
+# depsolve cascade ("php-pdo / php-common: conflicting requests"). So we filter
+# the uninstall list to only packages actually present on the host before
+# handing it to the package module to prevent this error.
 
-- name: "Setup | Uninstall | Install python3-rpm (and python3-libdnf5 on Fedora) for package_facts"
+- name: "Setup | Uninstall | Install python3-rpm on Red Hat and SUSE (and python3-libdnf5 on Fedora) for package_facts"
   ansible.builtin.package:
     name: >-
       {{
