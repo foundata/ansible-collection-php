@@ -130,18 +130,6 @@
 ## php specific
 
 
-- name: "Init | Assert: forbidden SAPI values are not in run_php_sapis"
-  ansible.builtin.assert:
-    that:
-      - (run_php_sapis | ansible.builtin.intersect(__run_php_sapis_forbidden) | ansible.builtin.length) == 0
-    fail_msg: >-
-      run_php_sapis contains a SAPI that is intentionally not supported by this role:
-      {{ run_php_sapis | ansible.builtin.intersect(__run_php_sapis_forbidden) | ansible.builtin.join(', ') }}.
-      mod_php (apache2handler) is not thread-safe and unavailable on RHEL 9+;
-      classic CGI is a slower legacy SAPI that was superseded by FPM long ago.
-      Use 'fpm' (with a web server proxying via FastCGI) and / or 'cli' instead.
-
-
 - name: "Init | Assert: distribution-default PHP version is known for this platform"
   ansible.builtin.assert:
     that:

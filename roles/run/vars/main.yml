@@ -106,14 +106,6 @@ __run_php_package_prefix: ""
 __run_php_sapi_packages_map: {}
 
 
-# Hard-disallowed SAPI values. The argument_specs reject these via "choices"
-# already, but the role also has an explicit assert in init.yml that prints
-# an actionable message instead of the schema-validator one.
-__run_php_sapis_forbidden:
-  - "apache2handler" # mod_php
-  - "cgi"
-
-
 # Mapping of PHP extension short name -> resources needed to install it on
 # this platform. Set in platform vars files.
 #
