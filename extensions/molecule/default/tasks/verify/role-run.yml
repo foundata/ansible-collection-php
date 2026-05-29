@@ -37,20 +37,6 @@
       }}
 
 
-# Re-derive the platform-stock FPM service user that the converge picked, so
-# the pool-content assertions match what was actually rendered.
-- name: "Molecule | Verify | Set platform-specific FPM service user"
-  ansible.builtin.set_fact:
-    __testing_fpm_user: >-
-      {{
-        {
-          'Debian': 'www-data',
-          'RedHat': 'apache',
-          'Suse': 'wwwrun',
-        }[ansible_facts['os_family']]
-      }}
-
-
 ## Shared INI drop-in file
 
 - name: "Molecule | Verify | Check if shared INI drop-in exists per target"
@@ -372,11 +358,22 @@
 
 
 - name: "Molecule | Verify | Assert phpinfo() output reflects the role-managed runtime state"
+  vars:
+    # phpinfo() runs via the PHP CLI binary, so it reports the CLI-side scan
+    # directory. On platforms with per-SAPI INI dirs (Debian-family) that is
+    # __run_php_config_ini_cli_dir_path; on shared-INI platforms (RHEL/Fedora,
+    # SUSE) it is __run_php_config_ini_shared_dir_path.
+    __testing_phpinfo_cli_ini_dir: >-
+      {{
+        __run_php_config_ini_cli_dir_path
+        if __run_php_has_per_sapi_ini
+        else __run_php_config_ini_shared_dir_path
+      }}
   ansible.builtin.assert:
     that:
-      # The scan directory of the shared INI drop-in is the one phpinfo() reports
-      # as "Scan this dir for additional .ini files".
-      - __testing_ini_target_dirs[0] in __testing_phpinfo['stdout']
+      # The CLI scan directory is the one phpinfo() reports as "Scan this dir
+      # for additional .ini files".
+      - __testing_phpinfo_cli_ini_dir in __testing_phpinfo['stdout']
       # The shared INI drop-in filename is listed in the "Additional .ini files
       # parsed" section.
       - __run_php_config_ini_dropin_filename in __testing_phpinfo['stdout']
