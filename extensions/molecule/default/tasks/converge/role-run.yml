@@ -150,6 +150,13 @@
           emergency_restart_threshold: 10
           emergency_restart_interval: "1m"
           process_control_timeout: "10s"
+          # Externally-observable proof that our managed [global] block wins
+          # over the distribution's stock [global] at runtime: redirect FPM's
+          # startup messages to a known path the verify stage can stat/slurp.
+          # If the stock [global] were not being overridden by our appended
+          # block, FPM would write its startup notices to the distribution
+          # default path (and the path below would be missing or empty).
+          error_log: "/var/log/molecule-foundata-php-fpm.log"
 
       # Exercises the service handler at the end of the run.
       run_php_fpm_service_state: "enabled"

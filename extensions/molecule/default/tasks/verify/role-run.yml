@@ -171,11 +171,75 @@
       - "'emergency_restart_threshold = 10' in __testing_fpm_main_decoded"
       - "'emergency_restart_interval = 1m' in __testing_fpm_main_decoded"
       - "'process_control_timeout = 10s' in __testing_fpm_main_decoded"
+      - "'error_log = /var/log/molecule-foundata-php-fpm.log' in __testing_fpm_main_decoded"
     fail_msg: >-
       The php-fpm.conf [global] managed block is missing or incomplete.
       Actual content: {{ __testing_fpm_main_decoded }}
     success_msg: >-
       The php-fpm.conf [global] managed block is present and contains all expected directives.
+
+
+# File-level shape check: the managed block must appear AFTER the stock
+# `include=` line so the role's [global] sits below the pool include and INI
+# last-wins applies. Catches a future refactor that accidentally re-positions
+# the blockinfile insertion point (e.g. back to `insertafter: '^\[global\]'`).
+- name: "Molecule | Verify | Assert managed [global] block sits AFTER the stock 'include=' line"
+  ansible.builtin.assert:
+    that:
+      - >-
+        __testing_fpm_main_decoded.index(';;; BEGIN ANSIBLE MANAGED BLOCK ;;;')
+        > __testing_fpm_main_decoded.rindex('include=')
+    fail_msg: >-
+      The managed [global] marker is positioned BEFORE the last 'include=' line in
+      php-fpm.conf. INI last-wins would no longer override stock [global] directives
+      reliably. Actual content: {{ __testing_fpm_main_decoded }}
+    success_msg: >-
+      The managed [global] marker is correctly positioned after the last 'include=' line.
+
+
+## Runtime proof: the managed [global] error_log path wins over the stock one
+
+# If the role's appended [global] block were ignored at runtime, FPM would
+# write its startup messages to whatever path the stock [global] points at,
+# and the file below would be missing or empty. So its existence and content
+# is an externally-observable proof that our last-wins override is effective.
+- name: "Molecule | Verify | Stat the FPM error_log redirected by the managed [global]"
+  ansible.builtin.stat:
+    path: "/var/log/molecule-foundata-php-fpm.log"
+  register: "__testing_fpm_error_log_stat"
+
+
+- name: "Molecule | Verify | Assert the redirected FPM error_log exists"
+  ansible.builtin.assert:
+    that:
+      - __testing_fpm_error_log_stat['stat']['exists']
+      - __testing_fpm_error_log_stat['stat']['size'] > 0
+    fail_msg: >-
+      The FPM error_log at '/var/log/molecule-foundata-php-fpm.log' does not exist
+      or is empty. This usually means the managed [global] block in php-fpm.conf
+      did NOT override the stock 'error_log' directive at runtime.
+    success_msg: >-
+      The FPM error_log redirected by the managed [global] exists and has content.
+
+
+- name: "Molecule | Verify | Read the FPM error_log content"
+  ansible.builtin.slurp:
+    src: "/var/log/molecule-foundata-php-fpm.log"
+  register: "__testing_fpm_error_log_content"
+
+
+- name: "Molecule | Verify | Assert the FPM error_log contains the master-startup notice"
+  ansible.builtin.assert:
+    that:
+      - "'fpm is running' in (__testing_fpm_error_log_content['content'] | ansible.builtin.b64decode)"
+    fail_msg: >-
+      The redirected FPM error_log exists but does not contain the expected
+      'fpm is running' master-startup notice. The managed [global] error_log
+      may point at a stale file that was created before this role run.
+      Actual content: {{ __testing_fpm_error_log_content['content'] | ansible.builtin.b64decode }}
+    success_msg: >-
+      The redirected FPM error_log contains the master-startup notice, proving
+      the managed [global] override is effective at runtime.
 
 
 ## FPM pool files
