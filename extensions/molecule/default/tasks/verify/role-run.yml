@@ -358,6 +358,47 @@
       CLI effective ini settings reflect run_php_settings.
 
 
+## Full phpinfo() probe (verifies extensions, INI scan dir, effective settings)
+
+- name: "Molecule | Verify | Run the phpinfo() probe via the PHP CLI"
+  ansible.builtin.command:
+    argv:
+      - "php"
+      - "-f"
+      - "/var/lib/molecule-php/phpinfo.php"
+  register: "__testing_phpinfo"
+  changed_when:
+    - false
+
+
+- name: "Molecule | Verify | Assert phpinfo() output reflects the role-managed runtime state"
+  ansible.builtin.assert:
+    that:
+      # The scan directory of the shared INI drop-in is the one phpinfo() reports
+      # as "Scan this dir for additional .ini files".
+      - __testing_ini_target_dirs[0] in __testing_phpinfo['stdout']
+      # The shared INI drop-in filename is listed in the "Additional .ini files
+      # parsed" section.
+      - __run_php_config_ini_dropin_filename in __testing_phpinfo['stdout']
+      # Mainstream extensions are loaded.
+      - "'mbstring' in __testing_phpinfo['stdout']"
+      - "'intl' in __testing_phpinfo['stdout']"
+      - "'bcmath' in __testing_phpinfo['stdout']"
+      - "'pgsql' in __testing_phpinfo['stdout']"
+      - "'opcache' in __testing_phpinfo['stdout']"
+      # Effective INI directives that run_php_settings configured.
+      - "'date.timezone' in __testing_phpinfo['stdout']"
+      - "'UTC' in __testing_phpinfo['stdout']"
+      - "'memory_limit' in __testing_phpinfo['stdout']"
+      - "'256M' in __testing_phpinfo['stdout']"
+    fail_msg: >-
+      phpinfo() output is missing one or more expected markers.
+      Output (first 2000 chars): {{ __testing_phpinfo['stdout'][:2000] }}
+    success_msg: >-
+      phpinfo() output reflects the role-managed runtime state (INI drop-ins
+      loaded, mainstream extensions present, effective settings applied).
+
+
 ## PHP-FPM service state
 
 - name: "Molecule | Verify | Gather service facts"

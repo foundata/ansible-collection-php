@@ -1,0 +1,26 @@
+# Tasks for the Molecule prepare stage: Add resources needed for later steps
+# (e.g. verify) on all driver-created instances.
+
+- name: "Molecule | Prepare | Create directory for the Molecule PHP probe(s)"
+  ansible.builtin.file:
+    path: "/var/lib/molecule-php"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "u=rwx,g=rx,o=rx" # 0755
+
+
+# The verify stage runs this script via the PHP CLI to dump the full runtime
+# state (loaded extensions, effective INI values, INI-file scan paths, ...)
+# and then asserts against it.phpinfo(INFO_ALL) covers
+# everything we want to inspect.
+- name: "Molecule | Prepare | Render phpinfo() probe script"
+  ansible.builtin.copy:
+    dest: "/var/lib/molecule-php/phpinfo.php"
+    content: |
+      <?php
+      // see https://www.php.net/manual/en/function.phpinfo.php
+      phpinfo(INFO_ALL);
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r" # 0644
