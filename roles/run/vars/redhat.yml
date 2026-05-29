@@ -228,3 +228,7 @@ __run_php_config_fpm_pool_dir_path: "/etc/php-fpm.d"
 
 # PHP-FPM service name. Unversioned on RHEL family.
 __run_php_fpm_service_name: "php-fpm.service"
+
+
+# php-fpm binary path. Unversioned on RHEL family.
+__run_php_fpm_exec_path: "/usr/sbin/php-fpm"

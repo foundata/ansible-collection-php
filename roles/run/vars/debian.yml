@@ -189,3 +189,7 @@ __run_php_config_fpm_pool_dir_path: "/etc/php/{{ __run_php_version_effective }}/
 
 # PHP-FPM service name. Versioned on Debian-like OS.
 __run_php_fpm_service_name: "php{{ __run_php_version_effective }}-fpm.service"
+
+
+# php-fpm binary path. Versioned on Debian-like OS (e.g. /usr/sbin/php-fpm8.4).
+__run_php_fpm_exec_path: "/usr/sbin/php-fpm{{ __run_php_version_effective }}"

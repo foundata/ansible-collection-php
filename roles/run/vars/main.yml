@@ -279,6 +279,15 @@ __run_php_config_ini_extension_dropin_filename_format: "99-managed-{extension}.i
 __run_php_fpm_service_name: ""
 
 
+# Path to the platform's php-fpm binary. Used by the `validate:` step of the
+# task that ensures the pool-include directive is present in php-fpm.conf
+# (php-fpm -t --fpm-config %s). Set in platform vars files. Examples:
+#   Debian 13: "/usr/sbin/php-fpm8.4"
+#   RHEL 10:   "/usr/sbin/php-fpm"
+#   SUSE 16:   "/usr/sbin/php-fpm"
+__run_php_fpm_exec_path: ""
+
+
 # Shortcut booleans derived from run_php_sapis. Defined once here so the rest of
 # the role doesn't have to spell out 'fpm' in run_php_sapis in every guard.
 __run_php_fpm_enabled: "{{ ('fpm' in run_php_sapis) }}"

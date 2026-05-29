@@ -221,16 +221,26 @@
 
 # PHP-FPM [global] directives via blockinfile.
 #
-# The managed block is inserted right after the existing "[global]" line in
-# the distribution's php-fpm.conf so directives extend (and INI-last-wins
-# override) the stock section without us re-declaring the section header.
+# The managed block is appended at the very end of the distribution's
+# php-fpm.conf. PHP-FPM uses INI "last definition wins" semantics, so a
+# fresh [global] section at EOF reliably overrides any stock [global]
+# directives above without us having to know what each platform shipped
+# (and any stock directives we do NOT touch are preserved).
+#
+# A re-declared "[global]" header is required: php-fpm's include directive
+# is processed within the surrounding section, and the included pool files
+# end with a [<poolname>] section header. Appending plain directives after
+# `include=` would parse them as part of that last pool, not [global], and
+# fail the service start (log_level, emergency_restart_*, ... are
+# [global]-only directives).
 
 - name: "Config | Default | Manage [global] block inside php-fpm.conf"
   ansible.builtin.blockinfile:
     path: "{{ __run_php_config_fpm_main_file_path }}"
     marker: ";;; {mark} ANSIBLE MANAGED BLOCK ;;;"
-    insertafter: '^\[global\]'
+    insertafter: "EOF"
     block: |-
+      [global]
       {% for name, value in run_php_fpm_service_settings['global'].items() -%}
       {{ name }} = {{ 'on' if (value is sameas true) else ('off' if (value is sameas false) else value) }}
       {% endfor -%}
@@ -318,5 +328,25 @@
   when:
     - __run_php_fpm_enabled
     - run_php_fpm_pools_delete_unmanaged
+  notify:
+    - "Handlers | PHP-FPM service reload"
+
+
+# Ensure the pool-include directive is present in the main php-fpm.conf.
+# Distributions ship this line by default, but once an operator has edited
+# php-fpm.conf the role can no longer assume it. Without this line the role's
+# pool files would silently never be loaded. Runs AFTER pool file rendering
+# so the validate step has at least one pool to parse (php-fpm refuses to
+# start without one).
+- name: "Config | Default | Ensure 'include' directive for pool dir exists in php-fpm.conf"
+  ansible.builtin.lineinfile:
+    path: "{{ __run_php_config_fpm_main_file_path }}"
+    line: "include={{ __run_php_config_fpm_pool_dir_path }}/*.conf"
+    regexp: '^\s*include\s*=\s*{{ __run_php_config_fpm_pool_dir_path | ansible.builtin.regex_escape }}/\*\.conf\s*$'
+    state: "present"
+    insertafter: "EOF"
+    validate: "{{ __run_php_fpm_exec_path }} --test --fpm-config %s"
+  when:
+    - __run_php_fpm_enabled
   notify:
     - "Handlers | PHP-FPM service reload"

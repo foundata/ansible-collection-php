@@ -683,9 +683,11 @@ argument_specs:
           it.
 
           Top-level keys correspond to PHP-FPM `php-fpm.conf` sections. The only
-          currently recognised section is `global`. Inside that dictionary, keys are
-          PHP-FPM directive names and values are their scalar values. Keys are used 1:1
-          with what PHP-FPM expects (dots intact, no quoting required by YAML).
+          currently recognised section is `global` (which provides complete coverage for
+          daemon settings; pool sections are handled via `run_php_fpm_pools`). Inside
+          that dictionary, keys are PHP-FPM directive names and values are their scalar
+          values. Keys are used 1:1 with what PHP-FPM expects (dots intact, no quoting
+          required by YAML).
 
           Honored only when `"fpm"` is in `run_php_sapis`. Setting it without FPM in the
           SAPI list produces a debug notice and the variable is ignored.
