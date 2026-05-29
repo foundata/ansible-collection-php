@@ -478,10 +478,10 @@ argument_specs:
           so the values never enter the shared INI directory used by shared-dir
           platforms (RHEL-like, SUSE-like) and behave identically on every platform.
 
-          The structure mirrors what PHP-FPM expects inside a pool block.
-          PHP-FPM has five associative-array bracket directives — the full
-          set is supported here. Pick `_admin` variants when the value must
-          not be overridable by application code at runtime (`ini_set()`):
+          The structure mirrors what PHP-FPM expects inside a pool block.  PHP-FPM has
+          five associative-array bracket directivesm, the full set is supported here.
+          Pick `_admin` variants when the value must not be overridable by application
+          code at runtime (`ini_set()`):
 
           - `php_admin_value`: dictionary of name to scalar value, locked
             from app code (PHP_INI_SYSTEM). Rendered as
@@ -498,9 +498,9 @@ argument_specs:
             values that the pool will export to its workers. Rendered as
             `env[NAME] = value` lines.
 
-          The list-shaped directive `access.suppress_path[]` (numerically
-          indexed, not associative) is not modeled as a typed key; use a
-          pool's `extra_content` for it.
+          The list-shaped directive `access.suppress_path[]` (numerically indexed, not
+          associative) is not modeled as a typed key; use a  pool's `extra_content` for
+          it.
 
           The variable is honored only when `"fpm"` appears in `run_php_sapis`. Setting
           it without FPM in the SAPI list produces a debug notice and the variable is

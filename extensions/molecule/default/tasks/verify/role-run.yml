@@ -307,7 +307,9 @@
 
 - name: "Molecule | Verify | Run 'php -m' to list loaded CLI extensions"
   ansible.builtin.command:
-    cmd: "php -m"
+    argv:
+      - "php"
+      - "-m"
   register: "__testing_php_modules"
   changed_when: false
 
@@ -331,7 +333,12 @@
 
 - name: "Molecule | Verify | Read effective CLI ini settings via php -r"
   ansible.builtin.command:
-    cmd: "php -r 'echo ini_get(\"date.timezone\") . \"|\" . ini_get(\"expose_php\") . \"|\" . ini_get(\"memory_limit\");'"
+    argv:
+      - "php"
+      - "-r"
+      # Pipe-separated values for a single-line, easy-to-assert-against output:
+      # <date.timezone>|<expose_php>|<memory_limit>
+      - 'echo ini_get("date.timezone") . "|" . ini_get("expose_php") . "|" . ini_get("memory_limit");'
   register: "__testing_php_ini"
   changed_when: false
 
