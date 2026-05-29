@@ -4,8 +4,8 @@
 
 # PHP-FPM is the only PHP SAPI with a long-running daemon and therefore the
 # only SAPI with a service state to manage. CLI has no service component. If
-# "fpm" is not in "run_php_sapis", the service tasks below do nothing (the
-# init phase has already emitted a notice if the user nonetheless set
+# "fpm" is not in "run_php_sapis", the service tasks below does nothing (the
+# init tasks file has already emitted a notice if the user nonetheless set
 # "run_php_fpm_service_state").
 
 - name: "Service | Default | Ensure service state: {{ __run_php_fpm_service_name }}"

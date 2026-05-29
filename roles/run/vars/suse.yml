@@ -51,7 +51,7 @@ __run_php_extensions_builtin_defaults:
 
 # Extension -> packages mapping
 #
-# Notes for openSUSE Leap 16:
+# Notes on openSUSE Leap:
 # - openSUSE ships an unusually granular set of php8-* packages - extensions
 #   that are bundled elsewhere (e.g. ctype, calendar, iconv on Debian/RHEL).
 # - Noteworthy package facts:

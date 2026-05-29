@@ -5,13 +5,14 @@
 # Compute the list of (directory, sapi) pairs that the role's INI drop-ins
 # should be rendered into.
 #
-#   - On Debian-like platforms each selected SAPI has its own conf.d/, so we
-#     get one target per selected SAPI; the merge of run_php_settings.shared
-#     and run_php_settings.<sapi> goes into that target.
-#   - On shared-dir platforms (RHEL-like, SUSE-like) there is exactly one
-#     target (the shared INI scan directory); only run_php_settings.shared
-#     contributes - the per-SAPI scopes are already rejected by init.yml on
-#     those platforms.
+# Notes:
+# - On Debian-like platforms each selected SAPI has its own conf.d/, so we
+#   get one target per selected SAPI; the merge of run_php_settings.shared
+#   and run_php_settings.<sapi> goes into that target.
+# - On shared-dir platforms (RHEL-like, SUSE-like) there is exactly one
+#   target (the shared INI scan directory); only run_php_settings.shared
+#   contributes - the per-SAPI scopes are already rejected by init.yml on
+#   those platforms.
 
 - name: "Config | Default | Compute effective INI render targets"
   ansible.builtin.set_fact:

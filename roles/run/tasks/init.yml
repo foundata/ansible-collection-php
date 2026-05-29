@@ -150,8 +150,8 @@
       No distribution-default PHP version stream is defined for
       {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
       in vars/. The role cannot resolve run_php_version="default" on this platform.
-      Either pin run_php_version to a concrete value (e.g. "8.3") or extend the role's
-      platform vars to cover this distribution and version.
+      Either pin run_php_version to a concrete value (e.g. "8.3") or ask the developers
+      to extend the role's platform vars to cover this distribution and version.
   when:
     - run_php_version == 'default'
 
@@ -164,7 +164,7 @@
       run_php_extensions_enabled contains entries that do not match [a-z0-9_]+:
       {{ run_php_extensions_enabled | ansible.builtin.reject('match', '^[a-z0-9_]+$') | ansible.builtin.list | ansible.builtin.join(', ') }}.
       PHP extension short names are lowercase. Capitalised historical names
-      (Core, PDO, Reflection, SPL, Phar) must be written lowercase here.
+      (Core, PDO, Reflection, SPL, Phar) must be written lowercase for this role.
 
 
 - name: "Init | Assert: every entry in run_php_extensions_enabled is known to the role"
@@ -202,10 +202,10 @@
       Per-SAPI INI scopes (run_php_settings.fpm, run_php_settings.cli,
       run_php_extension_settings.fpm, run_php_extension_settings.cli) cannot be
       represented on {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
-      because the platform uses a single shared INI scan directory.
-      Restructure the offending settings into the 'shared' scope, or use
-      run_php_fpm_pool_defaults / per-pool php_admin_value / php_admin_flag
-      inside run_php_fpm_pools for FPM-only directives (those stay portable).
+      because the platform uses a single shared INI configuration directory.
+      Restructure the settings into the 'shared' scope, or use run_php_fpm_pool_defaults
+      / per-pool php_admin_value / php_admin_flag inside run_php_fpm_pools for FPM-only
+      directives (those stay portable).
   when:
     - not __run_php_has_per_sapi_ini
 

@@ -134,9 +134,9 @@ __run_php_sapis_forbidden:
 #
 # Populated via the defaults/overwrite layering below: os_family vars files
 # (debian.yml, redhat.yml, suse.yml) define the base set in
-# `..._defaults`; per-version vars files (e.g. ubuntu_26.yml when PHP 8.5
+# ..._defaults; per-version vars files (e.g. ubuntu_26.yml when PHP 8.5
 # drops the standalone php-opcache package) override individual entries in
-# `..._overwrite`. The effective map is the deep-merge of the two.
+# ..._overwrite. The effective map is the deep-merge of the two.
 __run_php_extensions_map_resources_defaults: {}
 __run_php_extensions_map_resources_overwrite: {}
 __run_php_extensions_map_resources: >-
@@ -153,7 +153,7 @@ __run_php_extensions_map_resources: >-
 # vars files. Typical entries include core, date, pcre, reflection,
 # spl, standard, plus distribution-specific builtins.
 #
-# Same defaults/overwrite layering as `__run_php_extensions_map_resources`.
+# Same defaults/overwrite layering as __run_php_extensions_map_resources.
 __run_php_extensions_builtin_defaults: []
 __run_php_extensions_builtin_overwrite: []
 __run_php_extensions_builtin: >-
@@ -275,10 +275,10 @@ __run_php_config_ini_extension_dropin_filename_format: "99-managed-{extension}.i
 __run_php_fpm_service_name: ""
 
 
-# Shortcuts derived from run_php_sapis. Defined once here so the rest of
+# Shortcut booleans derived from run_php_sapis. Defined once here so the rest of
 # the role doesn't have to spell out 'fpm' in run_php_sapis in every guard.
-__run_php_fpm_enabled: "{{ 'fpm' in run_php_sapis }}"
-__run_php_cli_enabled: "{{ 'cli' in run_php_sapis }}"
+__run_php_fpm_enabled: "{{ ('fpm' in run_php_sapis) }}"
+__run_php_cli_enabled: "{{ ('cli' in run_php_sapis) }}"
 
 
 ### Override defaults of dependencies used by this role (if any).

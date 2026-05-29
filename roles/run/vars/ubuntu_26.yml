@@ -10,12 +10,12 @@
 __run_php_version_distribution_default: "8.5"
 
 
-# Starting with PHP 8.5 the standalone `php<ver>-opcache` package is gone -
+# Starting with PHP 8.5 the standalone php<ver>-opcache package is gone and
 # OPcache is compiled into the base PHP packages. The mods-available/ entry
 # for opcache is also gone in this packaging. Override the role's extension
 # map so it does not try to install the now-nonexistent package, and treat
-# opcache as a builtin so it stays accepted in `run_php_extensions_enabled`
-# and in `run_php_extension_settings.shared.opcache`.
+# opcache as a builtin so it stays accepted in run_php_extensions_enabled
+# and in run_php_extension_settings.shared.opcache.
 __run_php_extensions_map_resources_overwrite:
   opcache:
     packages: []
