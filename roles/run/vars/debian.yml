@@ -15,9 +15,9 @@ __run_php_has_per_sapi_ini: true
 
 
 # Versioned package prefix. Debian/Ubuntu ship php<ver>-* packages and a
-# php-* metapackage that follows the current default version stream. The
+# php-* meta-package that follows the current default version stream. The
 # role always pins to the versioned form so the result is deterministic
-# regardless of where the metapackage currently points.
+# regardless of where the meta-package currently points.
 __run_php_package_prefix: "php{{ __run_php_version_effective }}-"
 
 
@@ -78,59 +78,88 @@ __run_php_extensions_builtin_defaults:
 #   - php<ver>-xml is the umbrella for xml, simplexml, xmlreader,
 #     xmlwriter, dom, xsl
 __run_php_extensions_map_resources_defaults:
-  # --- Database ---
-  pgsql:
+  apcu:
     packages:
-      - "{{ __run_php_package_prefix }}pgsql"
-  pdo_pgsql:
+      - "{{ __run_php_package_prefix }}apcu"
+  bcmath:
     packages:
-      - "{{ __run_php_package_prefix }}pgsql"
-  mysqli:
+      - "{{ __run_php_package_prefix }}bcmath"
+  bz2:
     packages:
-      - "{{ __run_php_package_prefix }}mysql"
-  pdo_mysql:
-    packages:
-      - "{{ __run_php_package_prefix }}mysql"
-  sqlite3:
-    packages:
-      - "{{ __run_php_package_prefix }}sqlite3"
-  pdo_sqlite:
-    packages:
-      - "{{ __run_php_package_prefix }}sqlite3"
-  odbc:
-    packages:
-      - "{{ __run_php_package_prefix }}odbc"
-  pdo_odbc:
-    packages:
-      - "{{ __run_php_package_prefix }}odbc"
-  # --- Networking ---
+      - "{{ __run_php_package_prefix }}bz2"
   curl:
     packages:
       - "{{ __run_php_package_prefix }}curl"
-  ldap:
+  dom:
     packages:
-      - "{{ __run_php_package_prefix }}ldap"
-  soap:
+      - "{{ __run_php_package_prefix }}xml"
+  gd:
     packages:
-      - "{{ __run_php_package_prefix }}soap"
+      - "{{ __run_php_package_prefix }}gd"
+  gmp:
+    packages:
+      - "{{ __run_php_package_prefix }}gmp"
+  imagick:
+    packages:
+      - "{{ __run_php_package_prefix }}imagick"
   imap:
     packages:
       - "{{ __run_php_package_prefix }}imap"
-  snmp:
-    packages:
-      - "{{ __run_php_package_prefix }}snmp"
-  # --- Text and internationalisation ---
-  mbstring:
-    packages:
-      - "{{ __run_php_package_prefix }}mbstring"
   intl:
     packages:
       - "{{ __run_php_package_prefix }}intl"
-  # --- Data formats ---
-  xml:
+  ldap:
+    packages:
+      - "{{ __run_php_package_prefix }}ldap"
+  mbstring:
+    packages:
+      - "{{ __run_php_package_prefix }}mbstring"
+  memcached:
+    packages:
+      - "{{ __run_php_package_prefix }}memcached"
+  mysqli:
+    packages:
+      - "{{ __run_php_package_prefix }}mysql"
+  odbc:
+    packages:
+      - "{{ __run_php_package_prefix }}odbc"
+  opcache:
+    packages:
+      - "{{ __run_php_package_prefix }}opcache"
+  pdo_mysql:
+    packages:
+      - "{{ __run_php_package_prefix }}mysql"
+  pdo_odbc:
+    packages:
+      - "{{ __run_php_package_prefix }}odbc"
+  pdo_pgsql:
+    packages:
+      - "{{ __run_php_package_prefix }}pgsql"
+  pdo_sqlite:
+    packages:
+      - "{{ __run_php_package_prefix }}sqlite3"
+  pgsql:
+    packages:
+      - "{{ __run_php_package_prefix }}pgsql"
+  redis:
+    packages:
+      - "{{ __run_php_package_prefix }}redis"
+  simplexml:
     packages:
       - "{{ __run_php_package_prefix }}xml"
-  simplexml:
+  snmp:
+    packages:
+      - "{{ __run_php_package_prefix }}snmp"
+  soap:
+    packages:
+      - "{{ __run_php_package_prefix }}soap"
+  sqlite3:
+    packages:
+      - "{{ __run_php_package_prefix }}sqlite3"
+  xdebug:
+    packages:
+      - "{{ __run_php_package_prefix }}xdebug"
+  xml:
     packages:
       - "{{ __run_php_package_prefix }}xml"
   xmlreader:
@@ -139,49 +168,12 @@ __run_php_extensions_map_resources_defaults:
   xmlwriter:
     packages:
       - "{{ __run_php_package_prefix }}xml"
-  dom:
-    packages:
-      - "{{ __run_php_package_prefix }}xml"
   xsl:
     packages:
       - "{{ __run_php_package_prefix }}xml"
   zip:
     packages:
       - "{{ __run_php_package_prefix }}zip"
-  bz2:
-    packages:
-      - "{{ __run_php_package_prefix }}bz2"
-  # --- Graphics ---
-  gd:
-    packages:
-      - "{{ __run_php_package_prefix }}gd"
-  imagick:
-    packages:
-      - "{{ __run_php_package_prefix }}imagick"
-  # --- Caching and performance ---
-  opcache:
-    packages:
-      - "{{ __run_php_package_prefix }}opcache"
-  apcu:
-    packages:
-      - "{{ __run_php_package_prefix }}apcu"
-  redis:
-    packages:
-      - "{{ __run_php_package_prefix }}redis"
-  memcached:
-    packages:
-      - "{{ __run_php_package_prefix }}memcached"
-  # --- Debug and profiling ---
-  xdebug:
-    packages:
-      - "{{ __run_php_package_prefix }}xdebug"
-  # --- Crypto and math ---
-  bcmath:
-    packages:
-      - "{{ __run_php_package_prefix }}bcmath"
-  gmp:
-    packages:
-      - "{{ __run_php_package_prefix }}gmp"
 
 
 # Configuration paths. Debian uses per-SAPI INI directories under
@@ -195,5 +187,5 @@ __run_php_config_fpm_main_file_path: "/etc/php/{{ __run_php_version_effective }}
 __run_php_config_fpm_pool_dir_path: "/etc/php/{{ __run_php_version_effective }}/fpm/pool.d"
 
 
-# PHP-FPM service name. Versioned on Debian-like.
+# PHP-FPM service name. Versioned on Debian-like OS.
 __run_php_fpm_service_name: "php{{ __run_php_version_effective }}-fpm.service"
