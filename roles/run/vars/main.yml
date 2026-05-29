@@ -72,6 +72,9 @@ __run_php_version_distribution_default: ""
 # Effective PHP version stream used by the role. Resolves "default" against
 # __run_php_version_distribution_default; otherwise passes the user's pinned
 # value through unchanged.
+#
+# Lazy / late-bound evaluation: Jinja renders this variable on access,
+# after tasks/init.yml loads the platform vars file that sets the inputs.
 __run_php_version_effective: >-
   {{
     __run_php_version_distribution_default
@@ -139,6 +142,8 @@ __run_php_sapis_forbidden:
 # ..._overwrite. The effective map is the deep-merge of the two.
 __run_php_extensions_map_resources_defaults: {}
 __run_php_extensions_map_resources_overwrite: {}
+# Lazy / late-bound evaluation: Jinja renders this variable on access,
+# after tasks/init.yml loads the platform vars file that sets the inputs.
 __run_php_extensions_map_resources: >-
   {{
     __run_php_extensions_map_resources_defaults
@@ -156,6 +161,8 @@ __run_php_extensions_map_resources: >-
 # Same defaults/overwrite layering as __run_php_extensions_map_resources.
 __run_php_extensions_builtin_defaults: []
 __run_php_extensions_builtin_overwrite: []
+# Lazy / late-bound evaluation: Jinja renders this variable on access,
+# after tasks/init.yml loads the platform vars file that sets the inputs.
 __run_php_extensions_builtin: >-
   {{
     (__run_php_extensions_builtin_defaults + __run_php_extensions_builtin_overwrite)
@@ -167,6 +174,9 @@ __run_php_extensions_builtin: >-
 # List of package names to be installed when run_php_state is "present".
 # Aggregated from the base SAPI packages and the user-requested extensions.
 # Built lazily so platform vars files only have to populate the two maps.
+#
+# Lazy / late-bound evaluation: Jinja renders this variable on access,
+# after tasks/init.yml loads the platform vars file that sets the inputs.
 __run_php_packages_install: >-
   {{
     ((run_php_sapis
@@ -182,10 +192,12 @@ __run_php_packages_install: >-
 
 
 # List of package names to be uninstalled when run_php_state is "absent".
-# Removes every package the role could have installed on this platform
-# (every known SAPI + every known extension), independently of how
-# run_php_sapis / run_php_extensions_enabled happen to be set at
-# uninstall time.
+# Removes every package the role could have installed on this platform (every
+# known SAPI + every known extension), independently of how run_php_sapis /
+# run_php_extensions_enabled happen to be set at uninstall time.
+#
+# Lazy / late-bound evaluation: Jinja renders this variable on access,
+# after tasks/init.yml loads the platform vars file that sets the inputs.
 __run_php_packages_uninstall: >-
   {{
     ((__run_php_sapi_packages_map.values()

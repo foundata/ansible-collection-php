@@ -12,7 +12,7 @@
 # stream on EL9, we must enable the matching module stream before the regular
 # package install task runs (otherwise "dnf install php-fpm" resolves to 8.0).
 #
-# On EL10 (and Fedora) the php module concept is deprecated / not used:
+# On EL10 (and Fedora) the php module concept is deprecated and not used:
 # alternative versions ship as parallel "php8.4-*" package families and are
 # selected via __run_php_package_prefix instead. No module action is needed
 # there.

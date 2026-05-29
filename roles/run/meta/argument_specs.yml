@@ -221,21 +221,18 @@ argument_specs:
           A non-exhaustive anchor list of short names you will commonly want,
           grouped by purpose:
 
-          - Database: `pgsql`, `pdo_pgsql`, `mysqli`, `pdo_mysql`, `sqlite3`,
-            `pdo_sqlite`, `odbc`, `pdo_odbc`.
-          - Networking: `curl`, `ldap`, `soap`, `ftp`, `imap`, `sockets`,
-            `snmp`.
-          - Text and internationalisation: `mbstring`, `intl`, `iconv`,
-            `gettext`.
-          - Data formats: `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `dom`,
-            `xsl`, `zip`, `bz2`.
+          - Database: `pgsql`, `pdo_pgsql`, `mysqli`, `pdo_mysql`, `sqlite3`, `pdo_sqlite`,
+            `odbc`, `pdo_odbc`.
+          - Networking: `curl`, `ldap`, `soap`, `ftp`, `imap`, `sockets`, `snmp`.
+          - Text and internationalisation: `mbstring`, `intl`, `iconv`, `gettext`.
+          - Data formats: `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `dom`, `xsl`,
+            `zip`, `bz2`.
           - Graphics: `gd`, `exif`, `imagick` (PECL).
           - Caching and performance: `opcache`, `apcu` (PECL), `redis` (PECL),
             `memcached` (PECL).
           - Debug and profiling: `xdebug` (PECL), `tideways` (PECL).
           - Crypto and math: `bcmath`, `gmp`, `sodium`, `openssl`.
-          - System: `posix`, `pcntl`, `shmop`, `sysvshm`, `sysvsem`,
-            `sysvmsg`.
+          - System: `posix`, `pcntl`, `shmop`, `sysvshm`, `sysvsem`, `sysvmsg`.
 
           Example:
 
@@ -246,7 +243,7 @@ argument_specs:
             - "intl"
             - "mbstring"
             - "opcache"
-            - "xdebug"     # PECL, only useful on dev/debug hosts
+            - "xdebug" # PECL, usually just for dev/debug hosts
           ```
         type: "list"
         elements: "str"
