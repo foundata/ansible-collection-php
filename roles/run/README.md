@@ -6,6 +6,7 @@ The `foundata.php.run` Ansible role (part of the `foundata.php` Ansible collecti
 
 ## Table of contents<a id="toc"></a>
 
+- [Features](#features)
 - [Example playbooks, using this role](#examples)
 - [Supported tags](#tags)<!-- ANSIBLE DOCSMITH TOC START -->
 - [Role variables](#variables)
@@ -41,6 +42,23 @@ The `foundata.php.run` Ansible role (part of the `foundata.php` Ansible collecti
 
 
 
+## Features<a id="features"></a>
+
+Main features:
+
+* **Multi-SAPI support**: enable FPM, CLI, or both via the single `run_php_sapis` variable. mod_php is intentionally not supported (not thread-safe; unavailable on Red Hat 9+); classic CGI is intentionally not supported either (legacy, superseded by FPM).
+* **Platform-aware PHP version handling**: `run_php_version` accepts either a concrete stream (e.g. `"8.3"`) or `"default"`, which the role resolves to the distribution-default PHP version stream it knows for the current platform. The resolved version drives package names, INI directories and service names automatically.
+* **Extension management** via `run_php_extensions_enabled`: extensions are enabled by short name, the role installs the matching distribution sub-package and renders a per-extension INI drop-in. Unknown extension names fail the run early with the list of names known for the current platform.
+* **Per-SAPI INI scopes**: `run_php_settings['shared' | 'fpm' | 'cli']` and `run_php_extension_settings[...]` map directly to the per-SAPI INI directories on Debian-family platforms; on platforms with a shared INI directory (Red Hat, SUSE) the role rejects per-SAPI scopes at init time so misconfiguration surfaces before any side effects.
+* **FPM pool management** via `run_php_fpm_pool_defaults` + `run_php_fpm_pools`:
+  * Pool defaults are deep-merged with each pool's overrides, so common settings live in one place.
+  * Per-pool runtime INI shadowing via `php_admin_value` / `php_admin_flag` / `php_value` / `php_flag`, and environment variables via `env`.
+  * Pools can be marked `state: absent` to remove just one pool file, or `run_php_fpm_pools_delete_unmanaged: true` to enforce strict declarative ownership of the pool directory.
+* **FPM `[global]` directives** managed via `run_php_fpm_service_settings['global']` and appended at the end of `php-fpm.conf`. Platform-shipped `[global]` defaults are preserved unless explicitly overridden (PHP-FPM INI last-wins).
+* Designed for cross-platform compatibility, working seamlessly across Debian-family, Red Hat-family, and openSUSE.
+
+
+
 ## Example playbooks, using this role<a id="examples"></a>
 
 Installation with automatic upgrade:
@@ -58,6 +76,76 @@ Installation with automatic upgrade:
         name: "foundata.php.run"
       vars:
         run_php_autoupgrade: true
+```
+
+Installation pinned to a specific PHP version, with extensions, INI overrides and a dedicated FPM pool:
+
+```yaml
+---
+
+- name: "Initialize the foundata.php.run role"
+  hosts: localhost
+  gather_facts: false
+  tasks:
+
+    - name: "Trigger invocation of the foundata.php.run role"
+      ansible.builtin.include_role:
+        name: "foundata.php.run"
+      vars:
+        run_php_version: "8.3"
+        run_php_sapis:
+          - "fpm"
+          - "cli"
+        run_php_extensions_enabled:
+          - "mbstring"
+          - "intl"
+          - "bcmath"
+          - "opcache"
+          - "pgsql"
+        # INI drop-in directives shared by every SAPI. On Debian-family use the
+        # 'fpm:' / 'cli:' sub-keys to scope settings to a single SAPI.
+        run_php_settings:
+          shared:
+            date.timezone: "UTC"
+            expose_php: false
+            memory_limit: "256M"
+            max_execution_time: 30
+        # Per-extension INI drop-in directives (here: tuning opcache).
+        run_php_extension_settings:
+          shared:
+            opcache:
+              opcache.memory_consumption: 256
+              opcache.max_accelerated_files: 20000
+              opcache.enable_cli: false
+        # Defaults inherited by every pool below.
+        run_php_fpm_pool_defaults:
+          php_admin_value:
+            memory_limit: "256M"
+            upload_max_filesize: "64M"
+            post_max_size: "64M"
+          php_admin_flag:
+            display_errors: false
+            log_errors: true
+        run_php_fpm_pools:
+          app:
+            listen: "/run/php-fpm-app.sock"
+            pm: "dynamic"
+            pm.max_children: 16
+            pm.start_servers: 4
+            pm.min_spare_servers: 2
+            pm.max_spare_servers: 6
+            # Override the inherited default just for this pool.
+            php_admin_value:
+              memory_limit: "512M"
+            env:
+              APP_ENV: "production"
+        # [global] directives appended to php-fpm.conf. Platform stock values
+        # for directives you do not list here are preserved.
+        run_php_fpm_service_settings:
+          global:
+            log_level: "notice"
+            emergency_restart_threshold: 10
+            emergency_restart_interval: "1m"
 ```
 
 Uninstall:
