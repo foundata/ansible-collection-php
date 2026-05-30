@@ -419,21 +419,18 @@ if you need to verify what is actually loaded on a given host, run
 A non-exhaustive anchor list of short names you will commonly want,
 grouped by purpose:
 
-- Database: `pgsql`, `pdo_pgsql`, `mysqli`, `pdo_mysql`, `sqlite3`,
-  `pdo_sqlite`, `odbc`, `pdo_odbc`.
-- Networking: `curl`, `ldap`, `soap`, `ftp`, `imap`, `sockets`,
-  `snmp`.
-- Text and internationalisation: `mbstring`, `intl`, `iconv`,
-  `gettext`.
-- Data formats: `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `dom`,
-  `xsl`, `zip`, `bz2`.
+- Database: `pgsql`, `pdo_pgsql`, `mysqli`, `pdo_mysql`, `sqlite3`, `pdo_sqlite`,
+  `odbc`, `pdo_odbc`.
+- Networking: `curl`, `ldap`, `soap`, `ftp`, `imap`, `sockets`, `snmp`.
+- Text and internationalisation: `mbstring`, `intl`, `iconv`, `gettext`.
+- Data formats: `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `dom`, `xsl`,
+  `zip`, `bz2`.
 - Graphics: `gd`, `exif`, `imagick` (PECL).
 - Caching and performance: `opcache`, `apcu` (PECL), `redis` (PECL),
   `memcached` (PECL).
 - Debug and profiling: `xdebug` (PECL), `tideways` (PECL).
 - Crypto and math: `bcmath`, `gmp`, `sodium`, `openssl`.
-- System: `posix`, `pcntl`, `shmop`, `sysvshm`, `sysvsem`,
-  `sysvmsg`.
+- System: `posix`, `pcntl`, `shmop`, `sysvshm`, `sysvsem`, `sysvmsg`.
 
 Example:
 
@@ -444,7 +441,7 @@ run_php_extensions_enabled:
   - "intl"
   - "mbstring"
   - "opcache"
-  - "xdebug"     # PECL, only useful on dev/debug hosts
+  - "xdebug" # PECL, usually just for dev/debug hosts
 ```
 
 - **Type**: `list`
@@ -693,10 +690,10 @@ up with its own copy of these directives inside its `pool.d/<name>.conf` file,
 so the values never enter the shared INI directory used by shared-dir
 platforms (RHEL-like, SUSE-like) and behave identically on every platform.
 
-The structure mirrors what PHP-FPM expects inside a pool block.
-PHP-FPM has five associative-array bracket directives — the full
-set is supported here. Pick `_admin` variants when the value must
-not be overridable by application code at runtime (`ini_set()`):
+The structure mirrors what PHP-FPM expects inside a pool block.  PHP-FPM has
+five associative-array bracket directivesm, the full set is supported here.
+Pick `_admin` variants when the value must not be overridable by application
+code at runtime (`ini_set()`):
 
 - `php_admin_value`: dictionary of name to scalar value, locked
   from app code (PHP_INI_SYSTEM). Rendered as
@@ -713,9 +710,9 @@ not be overridable by application code at runtime (`ini_set()`):
   values that the pool will export to its workers. Rendered as
   `env[NAME] = value` lines.
 
-The list-shaped directive `access.suppress_path[]` (numerically
-indexed, not associative) is not modeled as a typed key; use a
-pool's `extra_content` for it.
+The list-shaped directive `access.suppress_path[]` (numerically indexed, not
+associative) is not modeled as a typed key; use a  pool's `extra_content` for
+it.
 
 The variable is honored only when `"fpm"` appears in `run_php_sapis`. Setting
 it without FPM in the SAPI list produces a debug notice and the variable is
@@ -923,9 +920,11 @@ role does not overwrite the distribution file, only the managed block inside
 it.
 
 Top-level keys correspond to PHP-FPM `php-fpm.conf` sections. The only
-currently recognised section is `global`. Inside that dictionary, keys are
-PHP-FPM directive names and values are their scalar values. Keys are used 1:1
-with what PHP-FPM expects (dots intact, no quoting required by YAML).
+currently recognised section is `global` (which provides complete coverage for
+daemon settings; pool sections are handled via `run_php_fpm_pools`). Inside
+that dictionary, keys are PHP-FPM directive names and values are their scalar
+values. Keys are used 1:1 with what PHP-FPM expects (dots intact, no quoting
+required by YAML).
 
 Honored only when `"fpm"` is in `run_php_sapis`. Setting it without FPM in the
 SAPI list produces a debug notice and the variable is ignored.
