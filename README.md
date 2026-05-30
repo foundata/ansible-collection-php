@@ -17,7 +17,7 @@ This repository contains the `foundata.php` Ansible Collection.
 
 ### Role: `foundata.php.run`
 
-See the [role's `README.md`](./roles/run/README.md) for more information and usage examples.
+The primary resource in this collection: installs and maintains a PHP runtime, manages the CLI and PHP-FPM (FastCGI Process Manager) SAPIs, and configures INI directives, extensions and FPM pools from a single declarative set of variables. See the [role's `README.md`](./roles/run/README.md) for more information and usage examples.
 
 
 
