@@ -1,6 +1,6 @@
 version = 1
 SPDX-PackageName = "Ansible collection: foundata.php"
-SPDX-PackageDownloadLocation = "https://github.com/foundata/ansible-collection-php"
+SPDX-PackageDownloadLocation = "https://foundata.com/en/projects/ansible-collection-php/#releases"
 SPDX-PackageSupplier = "foundata GmbH"
 SPDX-PackageComment = """
 This project may include calls to Application Programming Interfaces
