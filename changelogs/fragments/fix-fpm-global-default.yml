@@ -1,0 +1,10 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - Managing the php-fpm ``[global]`` block no longer fails when
+    ``run_php_fpm_service_settings`` is left at its documented default of ``{}``
+    while FPM is enabled. The template loop accessed ``['global']`` unguarded
+    (Ansible templates the ``block:`` argument regardless of the ``state:``
+    value), raising an undefined-key error; the access is now guarded with
+    ``| default({})``.

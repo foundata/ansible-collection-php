@@ -241,7 +241,7 @@
     insertafter: "EOF"
     block: |-
       [global]
-      {% for name, value in run_php_fpm_service_settings['global'].items() -%}
+      {% for name, value in (run_php_fpm_service_settings['global'] | ansible.builtin.default({})).items() -%}
       {{ name }} = {{ 'on' if (value is sameas true) else ('off' if (value is sameas false) else value) }}
       {% endfor -%}
     state: >-
