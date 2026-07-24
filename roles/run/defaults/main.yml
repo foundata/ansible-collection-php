@@ -130,7 +130,9 @@ run_php_version: "default"
 #
 # - Type: list
 # - Required: No
-# - Default: ['fpm', 'cli']
+# - Default:
+#   - "fpm"
+#   - "cli"
 # - Choices: fpm, cli
 # - List elements: str
 run_php_sapis:
@@ -319,6 +321,34 @@ run_php_extensions_disable_unmanaged: false
 # - Type: dict
 # - Required: No
 # - Default: {}
+# - Dict attributes:
+#   - shared:
+#     Settings that apply to every selected SAPI. Renders into every selected
+#     SAPI's INI directory on Debian-like platforms, and once into the shared
+#     INI scan directory on shared-dir platforms (RHEL-like, SUSE-like). This is
+#     the only cross-platform portable INI scope.
+#
+#     Top-level keys inside this dictionary are INI section names. The reserved
+#     `extra_content` key is a string appended verbatim after the structured
+#     render.
+#     - Type: dict
+#     - Required: No
+#   - fpm:
+#     Settings that apply only to the FPM SAPI. Renders into `fpm/conf.d/` on
+#     Debian-like platforms. Hard-fails on shared-dir platforms (RHEL-like,
+#     SUSE-like) when non-empty, because a single shared INI directory cannot
+#     represent per-SAPI INI. For cross-platform FPM-only INI, use
+#     `run_php_fpm_pool_defaults` or per-pool `php_admin_value` /
+#     `php_admin_flag` instead.
+#     - Type: dict
+#     - Required: No
+#   - cli:
+#     Settings that apply only to the CLI SAPI. Renders into `cli/conf.d/` on
+#     Debian-like platforms. Hard-fails on shared-dir platforms (RHEL-like,
+#     SUSE-like) when non-empty, because a single shared INI directory cannot
+#     represent per-SAPI INI.
+#     - Type: dict
+#     - Required: No
 run_php_settings: {}
 
 # INI directives applied per extension, scoped the same way as
@@ -361,6 +391,21 @@ run_php_settings: {}
 # - Type: dict
 # - Required: No
 # - Default: {}
+# - Dict attributes:
+#   - shared: Extension settings that apply to every selected SAPI. The only
+#     cross-platform portable per-extension scope.
+#     - Type: dict
+#     - Required: No
+#   - fpm: Extension settings that apply only to the FPM SAPI. Renders on
+#     Debian-like, hard-fails on shared-dir platforms (RHEL-like, SUSE-like)
+#     when non-empty.
+#     - Type: dict
+#     - Required: No
+#   - cli: Extension settings that apply only to the CLI SAPI. Renders on
+#     Debian-like, hard-fails on shared-dir platforms (RHEL-like, SUSE-like)
+#     when non-empty.
+#     - Type: dict
+#     - Required: No
 run_php_extension_settings: {}
 
 # Defaults merged underneath every pool in `run_php_fpm_pools` at render time.
@@ -381,8 +426,8 @@ run_php_extension_settings: {}
 # - `php_admin_value`: dictionary of name to scalar value, locked from app code
 #   (PHP_INI_SYSTEM). Rendered as `php_admin_value[name] = value` lines.
 # - `php_admin_flag`: dictionary of name to boolean, locked from app code. YAML
-#   booleans render as PHP-FPM `on` / `off`. Rendered as `php_admin_flag[name] =
-#   on|off` lines.
+#   booleans render as PHP-FPM `on` / `off`. Rendered as
+#   `php_admin_flag[name] = on|off` lines.
 # - `php_value`: dictionary of name to scalar value, app may re-override via
 #   `ini_set()`. Rendered as `php_value[name] = value` lines.
 # - `php_flag`: dictionary of name to boolean, app may re-override. Rendered as
@@ -420,6 +465,38 @@ run_php_extension_settings: {}
 # - Type: dict
 # - Required: No
 # - Default: {}
+# - Dict attributes:
+#   - php_admin_value:
+#     Pool-level INI directives, scalar values. PHP_INI_SYSTEM — locked from app
+#     code (cannot be overridden via `ini_set()`). Rendered as
+#     `php_admin_value[<name>] = <value>` inside the pool block.
+#     - Type: dict
+#     - Required: No
+#   - php_admin_flag:
+#     Pool-level INI directives, boolean values. Locked from app code. YAML
+#     booleans render as PHP-FPM `on` / `off`. Rendered as
+#     `php_admin_flag[<name>] = <on|off>` inside the pool block.
+#     - Type: dict
+#     - Required: No
+#   - php_value:
+#     Pool-level INI directives, scalar values. App code may re-override via
+#     `ini_set()` at runtime. Use the `_admin` variant when the value must
+#     survive app code. Rendered as `php_value[<name>] = <value>` inside the
+#     pool block.
+#     - Type: dict
+#     - Required: No
+#   - php_flag:
+#     Pool-level INI directives, boolean values. App code may re-override at
+#     runtime. Use the `_admin` variant when the value must survive app code.
+#     YAML booleans render as PHP-FPM `on` / `off`. Rendered as
+#     `php_flag[<name>] = <on|off>` inside the pool block.
+#     - Type: dict
+#     - Required: No
+#   - env:
+#     Environment variables exported to the workers of every pool. Rendered as
+#     `env[<name>] = <value>` inside the pool block.
+#     - Type: dict
+#     - Required: No
 run_php_fpm_pool_defaults: {}
 
 # PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also
@@ -550,4 +627,11 @@ run_php_fpm_pools_delete_unmanaged: false
 # - Type: dict
 # - Required: No
 # - Default: {}
+# - Dict attributes:
+#   - global:
+#     `[global]` directives of `php-fpm.conf`. Keys are PHP-FPM directive names
+#     and values are their scalar values. Keys are used 1:1 with what PHP-FPM
+#     expects (dots intact, no quoting required by YAML).
+#     - Type: dict
+#     - Required: No
 run_php_fpm_service_settings: {}
