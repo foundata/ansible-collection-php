@@ -17,7 +17,44 @@ This repository contains the `foundata.php` Ansible Collection.
 
 ### Role: `foundata.php.run`
 
-The primary resource in this collection: installs and maintains a PHP runtime, manages the CLI and PHP-FPM (FastCGI Process Manager) SAPIs, and configures INI directives, extensions and FPM pools from a single declarative set of variables. See the [role's `README.md`](./roles/run/README.md) for more information and usage examples.
+The primary role in this collection: installs and maintains a PHP runtime, manages the CLI and PHP-FPM (FastCGI Process Manager) SAPIs, and configures INI directives, extensions and FPM pools from a single declarative set of variables. [Its `README.md`](./roles/run/README.md) covers configuration, usage examples, and more:
+
+<!-- ANSIBLE DOCSMITH TOC-FULL run START -->
+- [Ansible role: `foundata.php.run`](roles/run/README.md#ansible-role-foundataphprun)
+  - [Table of contents](roles/run/README.md#toc)
+  - [Features](roles/run/README.md#features)
+  - [Example playbooks, using this role](roles/run/README.md#examples)
+  - [Supported tags](roles/run/README.md#tags)
+  - [Role variables](roles/run/README.md#variables)
+    - [`run_php_state`](roles/run/README.md#variable-run_php_state)
+    - [`run_php_autoupgrade`](roles/run/README.md#variable-run_php_autoupgrade)
+    - [`run_php_fpm_service_state`](roles/run/README.md#variable-run_php_fpm_service_state)
+    - [`run_php_version`](roles/run/README.md#variable-run_php_version)
+    - [`run_php_sapis`](roles/run/README.md#variable-run_php_sapis)
+    - [`run_php_extensions_enabled`](roles/run/README.md#variable-run_php_extensions_enabled)
+    - [`run_php_extensions_disable_unmanaged`](roles/run/README.md#variable-run_php_extensions_disable_unmanaged)
+    - [`run_php_settings`](roles/run/README.md#variable-run_php_settings)
+      - [`run_php_settings['shared']`](roles/run/README.md#variable-run_php_settings-sub-shared)
+      - [`run_php_settings['fpm']`](roles/run/README.md#variable-run_php_settings-sub-fpm)
+      - [`run_php_settings['cli']`](roles/run/README.md#variable-run_php_settings-sub-cli)
+    - [`run_php_extension_settings`](roles/run/README.md#variable-run_php_extension_settings)
+      - [`run_php_extension_settings['shared']`](roles/run/README.md#variable-run_php_extension_settings-sub-shared)
+      - [`run_php_extension_settings['fpm']`](roles/run/README.md#variable-run_php_extension_settings-sub-fpm)
+      - [`run_php_extension_settings['cli']`](roles/run/README.md#variable-run_php_extension_settings-sub-cli)
+    - [`run_php_fpm_pool_defaults`](roles/run/README.md#variable-run_php_fpm_pool_defaults)
+      - [`run_php_fpm_pool_defaults['php_admin_value']`](roles/run/README.md#variable-run_php_fpm_pool_defaults-sub-php_admin_value)
+      - [`run_php_fpm_pool_defaults['php_admin_flag']`](roles/run/README.md#variable-run_php_fpm_pool_defaults-sub-php_admin_flag)
+      - [`run_php_fpm_pool_defaults['php_value']`](roles/run/README.md#variable-run_php_fpm_pool_defaults-sub-php_value)
+      - [`run_php_fpm_pool_defaults['php_flag']`](roles/run/README.md#variable-run_php_fpm_pool_defaults-sub-php_flag)
+      - [`run_php_fpm_pool_defaults['env']`](roles/run/README.md#variable-run_php_fpm_pool_defaults-sub-env)
+    - [`run_php_fpm_pools`](roles/run/README.md#variable-run_php_fpm_pools)
+    - [`run_php_fpm_pools_delete_unmanaged`](roles/run/README.md#variable-run_php_fpm_pools_delete_unmanaged)
+    - [`run_php_fpm_service_settings`](roles/run/README.md#variable-run_php_fpm_service_settings)
+      - [`run_php_fpm_service_settings['global']`](roles/run/README.md#variable-run_php_fpm_service_settings-sub-global)
+  - [Dependencies](roles/run/README.md#dependencies)
+  - [Compatibility](roles/run/README.md#compatibility)
+  - [External requirements](roles/run/README.md#requirements)
+<!-- ANSIBLE DOCSMITH TOC-FULL run END -->
 
 
 
