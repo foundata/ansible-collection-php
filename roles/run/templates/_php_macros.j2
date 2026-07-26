@@ -14,11 +14,11 @@ Render an INI scalar value with the conventions used by php.ini drop-ins:
   - All other values render as double-quoted strings.
 -#}
 {%- macro render_ini_value(value) -%}
-{%-   if value is sameas true -%}
+{%-   if value is ansible.builtin.sameas true -%}
 On
-{%-   elif value is sameas false -%}
+{%-   elif value is ansible.builtin.sameas false -%}
 Off
-{%-   elif value is number -%}
+{%-   elif value is ansible.builtin.number -%}
 {{ value }}
 {%-   else -%}
 "{{ value }}"
@@ -53,7 +53,7 @@ Render a full INI scope (the structure under
 {%- macro render_ini_scope(scope) -%}
 {%-   set sections = (scope | ansible.builtin.default({}))
                      | ansible.builtin.dict2items
-                     | ansible.builtin.rejectattr('key', 'equalto', 'extra_content')
+                     | ansible.builtin.rejectattr('key', 'ansible.builtin.equalto', 'extra_content')
                      | ansible.builtin.list -%}
 {%-   for item in sections -%}
 [{{    item['key'] }}]
@@ -92,9 +92,9 @@ pool.d/*.conf:
     examples are unquoted; quoting can confuse PHP-FPM for path-like values).
 -#}
 {%- macro render_fpm_value(value) -%}
-{%-   if value is sameas true -%}
+{%-   if value is ansible.builtin.sameas true -%}
 on
-{%-   elif value is sameas false -%}
+{%-   elif value is ansible.builtin.sameas false -%}
 off
 {%-   else -%}
 {{ value }}
@@ -143,7 +143,7 @@ in a stable order, then any extra_content.
 {%-   set reserved_keys = bracket_keys + ['state', 'extra_content'] -%}
 {%-   set flat_items = (pool | ansible.builtin.default({}))
                        | ansible.builtin.dict2items
-                       | ansible.builtin.rejectattr('key', 'in', reserved_keys)
+                       | ansible.builtin.rejectattr('key', 'ansible.builtin.in', reserved_keys)
                        | ansible.builtin.list -%}
 {%-   set bracket_specs = [
         {'key': 'php_admin_value', 'is_flag': false},

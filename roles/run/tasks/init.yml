@@ -53,10 +53,10 @@
     __run_php_matched_versions: >-
       {{
         __run_php_supported_platforms
-        | ansible.builtin.selectattr('name', 'match', __run_php_platform_names_regex, ignorecase=true)
+        | ansible.builtin.selectattr('name', 'ansible.builtin.match', __run_php_platform_names_regex, ignorecase=true)
         | ansible.builtin.map(attribute='versions')
         | ansible.builtin.flatten
-        | ansible.builtin.select('match', __run_php_platform_versions_regex, ignorecase=true)
+        | ansible.builtin.select('ansible.builtin.match', __run_php_platform_versions_regex, ignorecase=true)
         | ansible.builtin.list
       }}
   when:
@@ -148,10 +148,10 @@
 - name: "Init | Assert: every entry in run_php_extensions_enabled is lowercase ([a-z0-9_]+)"
   ansible.builtin.assert:
     that:
-      - run_php_extensions_enabled | ansible.builtin.reject('match', '^[a-z0-9_]+$') | ansible.builtin.list | ansible.builtin.length == 0
+      - run_php_extensions_enabled | ansible.builtin.reject('ansible.builtin.match', '^[a-z0-9_]+$') | ansible.builtin.list | ansible.builtin.length == 0
     fail_msg: >-
       run_php_extensions_enabled contains entries that do not match [a-z0-9_]+:
-      {{ run_php_extensions_enabled | ansible.builtin.reject('match', '^[a-z0-9_]+$') | ansible.builtin.list | ansible.builtin.join(', ') }}.
+      {{ run_php_extensions_enabled | ansible.builtin.reject('ansible.builtin.match', '^[a-z0-9_]+$') | ansible.builtin.list | ansible.builtin.join(', ') }}.
       PHP extension short names are lowercase. Capitalised historical names
       (Core, PDO, Reflection, SPL, Phar) must be written lowercase for this role.
 
@@ -175,7 +175,7 @@
     __run_php_extensions_unknown: >-
       {{
         run_php_extensions_enabled
-        | ansible.builtin.reject('in', __run_php_extensions_known)
+        | ansible.builtin.reject('ansible.builtin.in', __run_php_extensions_known)
         | ansible.builtin.list
       }}
 
@@ -224,7 +224,7 @@
     __run_php_ext_settings_unknown: >-
       {{
         __run_php_ext_settings_referenced
-        | ansible.builtin.reject('in', __run_php_extensions_known)
+        | ansible.builtin.reject('ansible.builtin.in', __run_php_extensions_known)
         | ansible.builtin.list
         | ansible.builtin.unique
       }}
@@ -264,7 +264,7 @@
     __run_php_ext_settings_referenced_extra: >-
       {{
         __run_php_ext_settings_referenced
-        | ansible.builtin.reject('in', run_php_extensions_enabled)
+        | ansible.builtin.reject('ansible.builtin.in', run_php_extensions_enabled)
         | ansible.builtin.list
         | ansible.builtin.unique
       }}

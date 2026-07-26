@@ -212,7 +212,7 @@
       | ansible.builtin.map(attribute='files')
       | ansible.builtin.flatten
       | ansible.builtin.map(attribute='path')
-      | ansible.builtin.reject('in', __run_php_ext_ini_managed_paths)
+      | ansible.builtin.reject('ansible.builtin.in', __run_php_ext_ini_managed_paths)
       | ansible.builtin.list
     }}
   notify:
@@ -242,7 +242,7 @@
     block: |-
       [global]
       {% for name, value in (run_php_fpm_service_settings['global'] | ansible.builtin.default({})).items() -%}
-      {{ name }} = {{ 'on' if (value is sameas true) else ('off' if (value is sameas false) else value) }}
+      {{ name }} = {{ 'on' if (value is ansible.builtin.sameas true) else ('off' if (value is ansible.builtin.sameas false) else value) }}
       {% endfor -%}
     state: >-
       {{
@@ -318,9 +318,9 @@
       (__run_php_fpm_pool_existing['files'] | ansible.builtin.default([]))
       | ansible.builtin.map(attribute='path')
       | ansible.builtin.reject(
-          'in',
+          'ansible.builtin.in',
           run_php_fpm_pools.keys()
-          | ansible.builtin.map('regex_replace', '^(.*)$', __run_php_config_fpm_pool_dir_path ~ '/\1.conf')
+          | ansible.builtin.map('ansible.builtin.regex_replace', '^(.*)$', __run_php_config_fpm_pool_dir_path ~ '/\1.conf')
           | ansible.builtin.list
         )
       | ansible.builtin.list

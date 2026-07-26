@@ -173,11 +173,11 @@ __run_php_extensions_builtin: >-
 __run_php_packages_install: >-
   {{
     ((run_php_sapis
-      | ansible.builtin.map('extract', __run_php_sapi_packages_map)
+      | ansible.builtin.map('ansible.builtin.extract', __run_php_sapi_packages_map)
       | ansible.builtin.flatten)
      + (run_php_extensions_enabled
-        | ansible.builtin.select('in', __run_php_extensions_map_resources.keys() | ansible.builtin.list)
-        | ansible.builtin.map('extract', __run_php_extensions_map_resources, 'packages')
+        | ansible.builtin.select('ansible.builtin.in', __run_php_extensions_map_resources.keys() | ansible.builtin.list)
+        | ansible.builtin.map('ansible.builtin.extract', __run_php_extensions_map_resources, 'packages')
         | ansible.builtin.flatten))
     | ansible.builtin.unique
     | ansible.builtin.list

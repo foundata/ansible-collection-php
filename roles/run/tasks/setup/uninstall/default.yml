@@ -43,7 +43,7 @@
     __run_php_packages_uninstall_installed: >-
       {{
         (__run_php_packages_uninstall | ansible.builtin.default([]))
-        | ansible.builtin.select('in', ansible_facts['packages'].keys())
+        | ansible.builtin.select('ansible.builtin.in', ansible_facts['packages'].keys())
         | ansible.builtin.list
       }}
   when:
