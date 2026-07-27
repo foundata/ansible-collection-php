@@ -1,0 +1,10 @@
+---
+
+security_fixes:
+  - >
+    ``run`` role - PHP-FPM pool files were rendered world-readable (``0644``)
+    although ``env`` and ``php_admin_value`` entries commonly carry application
+    credentials such as database passwords. Pool files are now rendered ``0600``
+    (only the FPM master process, running as root, reads them) and the render
+    task suppresses its diff output so pool contents no longer leak into
+    ``--diff`` / check-mode logs.

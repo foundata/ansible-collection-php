@@ -200,7 +200,7 @@ The following variables can be configured for this role:
 | `run_php_settings` | `dict` | No | `{}` | PHP INI configuration as a scope-keyed nested dictionary. The role renders one or more drop-in `.ini` files into the appropriate SAPI INI directory on Debian-like systems, or into the single shared INI scan directory on shared-dir platforms […](#variable-run_php_settings) |
 | `run_php_extension_settings` | `dict` | No | `{}` | INI directives applied per extension, scoped the same way as `run_php_settings`. Top-level keys are configuration scopes (`shared`, `fpm`, `cli`); second-level keys are extension short names; third-level keys are flat INI directives for that […](#variable-run_php_extension_settings) |
 | `run_php_fpm_pool_defaults` | `dict` | No | `{}` | Defaults merged underneath every pool in `run_php_fpm_pools` at render time. Per-pool entries override defaults on any matching key (deep merge: pool's `php_admin_value.memory_limit` overrides the default's […](#variable-run_php_fpm_pool_defaults) |
-| `run_php_fpm_pools` | `dict` | No | `{}` | PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also the filename used in `pool.d/.conf`. Honored only when `"fpm"` is in `run_php_sapis`.<br><br>Each pool entry is a dictionary whose keys are PHP-FPM directive names verbatim […](#variable-run_php_fpm_pools) |
+| `run_php_fpm_pools` | `dict` | No | `{}` | PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also the filename used in `pool.d/.conf`. Honored only when `"fpm"` is in `run_php_sapis`.<br><br>Pool files are rendered readable by `root` only (mode `0600`) because `env` and […](#variable-run_php_fpm_pools) |
 | `run_php_fpm_pools_delete_unmanaged` | `bool` | No | `false` | Controls whether the role removes pool files from `pool.d/` that are not declared in `run_php_fpm_pools`.<br><br>When `true`, any `*.conf` file in `pool.d/` whose stem does not match an entry in `run_php_fpm_pools` is deleted on every role run. This […](#variable-run_php_fpm_pools_delete_unmanaged) |
 | `run_php_fpm_service_settings` | `dict` | No | `{}` | PHP-FPM service-level settings, written into the `[global]` section of the distribution's main `php-fpm.conf` via `ansible.builtin.blockinfile`. The role does not overwrite the distribution file, only the managed block inside it.<br><br>Top-level […](#variable-run_php_fpm_service_settings) |
 
@@ -290,6 +290,14 @@ natively, a pinned non-default value requires the matching third-party
 repository to already be configured (for example Sury on Debian, Remi on
 RHEL). Setting up those repositories is intentionally out of scope for this
 role yet.
+
+On EL9 (RHEL, AlmaLinux, Rocky, CentOS Stream 9), alternative versions ship
+natively as DNF module streams (`php:8.1`, `php:8.2`, `php:8.3`), so no
+third-party repository is needed there. The role enables the matching stream
+before installing; package names stay unversioned (`php-*`). An enabled
+module stream is retained state: `run_php_state: "absent"` removes the
+packages but does not reset the stream (use `dnf module reset php` manually
+if you need the distribution default back).
 
 Managing multiple parallel PHP version streams on the same host with a
 single role invocation is not supported. If you need that, invoke the role
@@ -471,7 +479,14 @@ removable SAPI-specific symlinks. On Debian-like platforms, the role removes
 unmanaged symlinks from the selected SAPIs' `conf.d/` directories (for
 example `/etc/php/<version>/fpm/conf.d/` and
 `/etc/php/<version>/cli/conf.d/`) while leaving the canonical files in
-`mods-available/` untouched.
+`mods-available/` untouched. Extensions the role classifies as part of the
+base PHP installation (bundled by `php<version>-common`, e.g. `pdo`, `phar`,
+`ctype`, `iconv`) are always kept, even when not listed in
+`run_php_extensions_enabled`: removing their activation symlinks would break
+the base installation and dependent extensions. Note that extensions pulled
+in as package dependencies but not classified as base (most notably
+`opcache`) ARE disabled when unlisted, so add them to
+`run_php_extensions_enabled` if you want to keep them active.
 
 On RHEL-like platforms and SUSE-like platforms, PHP extension drop-ins are
 package-owned files in a shared INI scan directory (for example `/etc/php.d/`
@@ -810,6 +825,12 @@ Rendered as `env[<name>] = <value>` inside the pool block.
 PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also
 the filename used in `pool.d/<name>.conf`. Honored  only when `"fpm"` is in
 `run_php_sapis`.
+
+Pool files are rendered readable by `root` only (mode `0600`) because `env`
+and `php_admin_value` entries commonly carry application credentials such as
+database passwords; only the FPM master process (running as root) reads pool
+files. For the same reason the render task suppresses its diff output, so
+pool contents do not leak into `--diff` / check-mode logs.
 
 Each pool entry is a dictionary whose keys are PHP-FPM directive names
 verbatim (with dots intact, since YAML accepts dots in unquoted keys). The

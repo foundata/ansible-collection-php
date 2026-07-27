@@ -1,0 +1,11 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - ``run_php_extensions_disable_unmanaged: true`` removed the
+    activation symlinks of base extensions bundled by ``php<version>-common`` on
+    Debian-like platforms (``pdo``, ``phar``, ``ctype``, ``iconv``, ...) unless
+    every one of them was listed in ``run_php_extensions_enabled``, breaking the
+    base PHP installation and dependent extensions (e.g. every ``pdo_*`` driver
+    fails to load without ``pdo``). Extensions the role classifies as builtin are
+    now always kept.

@@ -21,6 +21,13 @@
 # extension back to the list) re-creates the symlink and re-activates
 # the extension.
 #
+# Extensions the role classifies as builtin (__run_php_extensions_builtin) are
+# always kept: php<ver>-common ships activation symlinks for its bundled
+# extensions (pdo, phar, ctype, iconv, tokenizer, ...) on a fresh install, and
+# removing them would break the base PHP installation (e.g. every pdo_* driver
+# fails to load without pdo) just because the operator did not enumerate the
+# whole base set in run_php_extensions_enabled.
+#
 # Files matching the role's own managed pattern (99-managed*.ini) are kept;
 # regular non-symlink files are also kept (only distribution-style activation
 # symlinks are touched).
@@ -44,7 +51,7 @@
     - run_php_extensions_disable_unmanaged
 
 
-- name: "Config | Debian | Remove activation symlinks for extensions not in run_php_extensions_enabled"
+- name: "Config | Debian | Remove activation symlinks of unmanaged non-builtin extensions"
   ansible.builtin.file:
     path: "{{ item['path'] }}"
     state: "absent"
@@ -68,5 +75,6 @@
   when:
     - run_php_extensions_disable_unmanaged
     - __run_php_link_extension not in run_php_extensions_enabled
+    - __run_php_link_extension not in __run_php_extensions_builtin
   notify:
     - "Handlers | PHP-FPM service reload"

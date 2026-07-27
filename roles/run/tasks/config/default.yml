@@ -256,7 +256,10 @@
     - "Handlers | PHP-FPM service restart"
 
 
-# PHP-FPM pool files.
+# PHP-FPM pool files. Rendered root-only (pools may carry application
+# credentials in "env" / "php_admin_value"; only the root FPM master reads
+# them) and with diff output suppressed so those values do not end up in
+# --diff / check-mode logs.
 
 - name: "Config | Default | Render PHP-FPM pool files (state: present)"
   ansible.builtin.template:
@@ -264,7 +267,8 @@
     dest: "{{ __run_php_config_fpm_pool_dir_path }}/{{ __run_php_pool_item['key'] }}.conf"
     owner: "{{ __run_php_config_file_owner }}"
     group: "{{ __run_php_config_file_group }}"
-    mode: "{{ __run_php_config_file_mode }}"
+    mode: "{{ __run_php_config_fpm_pool_file_mode }}"
+  diff: false
   vars:
     __run_php_render_pool_name: "{{ __run_php_pool_item['key'] }}"
     __run_php_render_pool: >-

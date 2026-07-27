@@ -75,6 +75,14 @@ run_php_fpm_service_state: "enabled"
 # RHEL). Setting up those repositories is intentionally out of scope for this
 # role yet.
 #
+# On EL9 (RHEL, AlmaLinux, Rocky, CentOS Stream 9), alternative versions ship
+# natively as DNF module streams (`php:8.1`, `php:8.2`, `php:8.3`), so no
+# third-party repository is needed there. The role enables the matching stream
+# before installing; package names stay unversioned (`php-*`). An enabled module
+# stream is retained state: `run_php_state: "absent"` removes the packages but
+# does not reset the stream (use `dnf module reset php` manually if you need the
+# distribution default back).
+#
 # Managing multiple parallel PHP version streams on the same host with a single
 # role invocation is not supported. If you need that, invoke the role multiple
 # times with different `run_php_version` values and take care that each
@@ -244,7 +252,14 @@ run_php_extensions_enabled: []
 # removable SAPI-specific symlinks. On Debian-like platforms, the role removes
 # unmanaged symlinks from the selected SAPIs' `conf.d/` directories (for example
 # `/etc/php/<version>/fpm/conf.d/` and `/etc/php/<version>/cli/conf.d/`) while
-# leaving the canonical files in `mods-available/` untouched.
+# leaving the canonical files in `mods-available/` untouched. Extensions the
+# role classifies as part of the base PHP installation (bundled by
+# `php<version>-common`, e.g. `pdo`, `phar`, `ctype`, `iconv`) are always kept,
+# even when not listed in `run_php_extensions_enabled`: removing their
+# activation symlinks would break the base installation and dependent
+# extensions. Note that extensions pulled in as package dependencies but not
+# classified as base (most notably `opcache`) ARE disabled when unlisted, so add
+# them to `run_php_extensions_enabled` if you want to keep them active.
 #
 # On RHEL-like platforms and SUSE-like platforms, PHP extension drop-ins are
 # package-owned files in a shared INI scan directory (for example `/etc/php.d/`
@@ -502,6 +517,12 @@ run_php_fpm_pool_defaults: {}
 # PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also
 # the filename used in `pool.d/<name>.conf`. Honored only when `"fpm"` is in
 # `run_php_sapis`.
+#
+# Pool files are rendered readable by `root` only (mode `0600`) because `env`
+# and `php_admin_value` entries commonly carry application credentials such as
+# database passwords; only the FPM master process (running as root) reads pool
+# files. For the same reason the render task suppresses its diff output, so pool
+# contents do not leak into `--diff` / check-mode logs.
 #
 # Each pool entry is a dictionary whose keys are PHP-FPM directive names
 # verbatim (with dots intact, since YAML accepts dots in unquoted keys). The

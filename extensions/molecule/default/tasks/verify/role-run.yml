@@ -260,6 +260,20 @@
       The testpool pool file '{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf' exists.
 
 
+- name: "Molecule | Verify | Assert testpool pool file is root-only (0600)"
+  ansible.builtin.assert:
+    that:
+      - __testing_testpool_stat['stat']['mode'] == '0600'
+      - __testing_testpool_stat['stat']['pw_name'] == 'root'
+    fail_msg: >-
+      The testpool pool file has mode {{ __testing_testpool_stat['stat']['mode'] }}
+      (owner {{ __testing_testpool_stat['stat']['pw_name'] }}), expected 0600 owned by
+      root. Pool files may carry credentials in env / php_admin_value entries and must
+      not be world-readable.
+    success_msg: >-
+      The testpool pool file is root-owned with mode 0600 (as expected).
+
+
 - name: "Molecule | Verify | Check that absent-example pool file does NOT exist"
   ansible.builtin.stat:
     path: "{{ __run_php_config_fpm_pool_dir_path }}/absent-example.conf"

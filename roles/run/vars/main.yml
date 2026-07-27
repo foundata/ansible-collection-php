@@ -259,6 +259,12 @@ __run_php_config_dir_owner: "root"
 __run_php_config_dir_group: "root"
 __run_php_config_dir_mode: "u=rwx,g=rx,o=rx" # 0755
 
+# FPM pool files are the exception to the world-readable default above: pools
+# support "env" and "php_admin_value" entries which commonly carry application
+# credentials (database passwords, API keys). Only the FPM master process
+# (running as root) reads pool files, so root-only access loses nothing.
+__run_php_config_fpm_pool_file_mode: "u=rw,g=,o=" # 0600
+
 
 # Filename for the role-managed shared-scope INI drop-in. The "99-" prefix
 # makes the role's drop-in load *after* the distribution's own drop-ins

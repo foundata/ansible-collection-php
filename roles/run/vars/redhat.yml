@@ -65,10 +65,16 @@ __run_php_version_distribution_default: >-
 # the unversioned prefix; otherwise use the php<flatver>- prefix
 # (8.4 -> php84- style is NOT what RHEL uses; RHEL uses php8.4- with
 # the dot intact).
+#
+# EL9 is the exception: alternative versions are DNF module streams there,
+# not parallel package families, so every stream resolves through the same
+# unversioned php-* names (a php8.2-* name does not exist on EL9). The
+# stream itself is enabled by the per-platform install tasks.
 __run_php_package_prefix: >-
   {{
     'php-'
-    if __run_php_version_effective == __run_php_version_distribution_default
+    if (__run_php_version_effective == __run_php_version_distribution_default
+        or ansible_facts['distribution_major_version'] == '9')
     else 'php' ~ __run_php_version_effective ~ '-'
   }}
 

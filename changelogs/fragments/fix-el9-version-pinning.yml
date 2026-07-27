@@ -1,0 +1,16 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - Pinning ``run_php_version`` on EL9 generated nonexistent package
+    names: the package prefix switched to ``php<version>-`` although EL9 delivers
+    alternative versions as DNF module streams that keep the unversioned ``php-*``
+    package names. The prefix now stays ``php-`` on EL9.
+  - >
+    ``run`` role - The EL9 DNF module stream tasks
+    (``tasks/setup/install/redhat_9.yml``) were unreachable on AlmaLinux, Rocky
+    Linux, and CentOS Stream because the platform dispatch resolves
+    per-distribution filenames only. Added ``almalinux_9.yml``, ``rocky_9.yml`` and
+    ``centos_9.yml`` which include the shared EL9 module stream tasks, so pinning
+    ``run_php_version`` now enables the matching ``php:<version>`` stream on all
+    EL9 derivatives.
