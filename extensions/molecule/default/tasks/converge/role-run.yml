@@ -179,7 +179,7 @@
     {{
       (__testing_state | ansible.builtin.default({}, true))
       | ansible.builtin.dict2items
-      | ansible.builtin.selectattr('key', 'match', '^run_php_')
+      | ansible.builtin.selectattr('key', 'ansible.builtin.match', '^run_php_')
       | ansible.builtin.list
     }}
 
