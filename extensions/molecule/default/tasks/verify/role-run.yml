@@ -583,6 +583,175 @@
           A path-escaping pool name is rejected by the role's init.
 
 
+## Strict declarative ownership (run_php_extensions_disable_unmanaged and
+## run_php_fpm_pools_delete_unmanaged)
+#
+# The converge deliberately keeps both toggles false, so this block re-runs
+# the role with both set to true and asserts the cleanup touches exactly the
+# unmanaged resources: a planted extra pool file and (on Debian-like) a
+# planted extension activation symlink go away, while the declared pool, the
+# role's managed INI drop-ins and every pre-existing activation symlink
+# (enabled extensions AND the always-kept builtins) survive.
+
+- name: "Molecule | Verify | Strict ownership: record the extension activation symlinks before the run (Debian-like)"
+  ansible.builtin.find:
+    paths:
+      - "{{ __run_php_config_ini_fpm_dir_path }}"
+      - "{{ __run_php_config_ini_cli_dir_path }}"
+    patterns: '^[0-9]+-.+\.ini$'
+    use_regex: true
+    file_type: "link"
+  register: __testing_strict_links_before
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+
+- name: "Molecule | Verify | Strict ownership: plant a fake canonical extension INI (Debian-like)"
+  ansible.builtin.copy:
+    dest: "{{ __run_php_config_mods_available_dir_path }}/faketest.ini"
+    content: |
+      ; molecule strict-ownership canary (contains no directives on purpose)
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+
+- name: "Molecule | Verify | Strict ownership: plant unmanaged activation symlinks (Debian-like)"
+  ansible.builtin.file:
+    path: "{{ item }}/20-faketest.ini"
+    src: "{{ __run_php_config_mods_available_dir_path }}/faketest.ini"
+    state: "link"
+  loop:
+    - "{{ __run_php_config_ini_fpm_dir_path }}"
+    - "{{ __run_php_config_ini_cli_dir_path }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+
+- name: "Molecule | Verify | Strict ownership: plant an unmanaged pool file"
+  ansible.builtin.copy:
+    dest: "{{ __run_php_config_fpm_pool_dir_path }}/unmanaged-extra.conf"
+    content: |
+      [unmanaged-extra]
+      user = {{ __testing_fpm_user }}
+      group = {{ __testing_fpm_user }}
+      listen = /run/php-fpm-unmanaged-extra.sock
+      pm = static
+      pm.max_children = 1
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=,o="
+
+
+- name: "Molecule | Verify | Strict ownership: re-run the role with both cleanup toggles enabled"
+  ansible.builtin.include_role:
+    name: "foundata.php.run"
+  vars:
+    run_php_extensions_disable_unmanaged: true
+    run_php_fpm_pools_delete_unmanaged: true
+
+
+# The re-run notified the validate and reload handlers. Flush them now, while
+# PHP-FPM is still installed: the EL9 block below uninstalls it, and handlers
+# deferred to the end of the play would then run against a removed binary.
+- name: "Molecule | Verify | Strict ownership: flush the notified handlers"
+  ansible.builtin.meta: "flush_handlers"
+
+
+- name: "Molecule | Verify | Strict ownership: list the pool files after the run"
+  ansible.builtin.find:
+    paths:
+      - "{{ __run_php_config_fpm_pool_dir_path }}"
+    patterns:
+      - "*.conf"
+    file_type: "file"
+  register: __testing_strict_pools_after
+
+
+- name: "Molecule | Verify | Strict ownership: assert only the declared pool file remains"
+  ansible.builtin.assert:
+    that:
+      - >-
+        (__testing_strict_pools_after['files']
+         | ansible.builtin.map(attribute='path')
+         | ansible.builtin.map('ansible.builtin.basename')
+         | ansible.builtin.sort)
+        == ['testpool.conf']
+    fail_msg: >-
+      Expected exactly ['testpool.conf'] in {{ __run_php_config_fpm_pool_dir_path }},
+      found: {{ __testing_strict_pools_after['files'] | ansible.builtin.map(attribute='path') | ansible.builtin.list }}.
+    success_msg: >-
+      run_php_fpm_pools_delete_unmanaged removed the planted pool (and the
+      distribution pool) while keeping the declared one.
+
+
+- name: "Molecule | Verify | Strict ownership: record the extension activation symlinks after the run (Debian-like)"
+  ansible.builtin.find:
+    paths:
+      - "{{ __run_php_config_ini_fpm_dir_path }}"
+      - "{{ __run_php_config_ini_cli_dir_path }}"
+    patterns: '^[0-9]+-.+\.ini$'
+    use_regex: true
+    file_type: "link"
+  register: __testing_strict_links_after
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+
+# The expected survivor set is computed, not assumed: exactly the symlinks of
+# enabled and builtin extensions stay, everything else goes - the planted
+# fake ones AND legitimately unmanaged siblings that an enabled extension's
+# package happens to ship (e.g. php<ver>-pgsql ships pgsql and pdo_pgsql;
+# only the listed pgsql keeps its activation). Keeping the builtin set is the
+# regression guard for the keep-builtins behavior: removing those would
+# break the base PHP installation.
+- name: "Molecule | Verify | Strict ownership: assert exactly the unmanaged symlinks were removed (Debian-like)"
+  ansible.builtin.assert:
+    that:
+      - >-
+        (__testing_strict_links_after['files']
+         | ansible.builtin.map(attribute='path')
+         | ansible.builtin.sort)
+        == __testing_strict_links_expected
+    fail_msg: >-
+      Expected the activation symlinks of the enabled and builtin extensions
+      to survive, and only those. Expected: {{ __testing_strict_links_expected }};
+      after: {{ __testing_strict_links_after['files'] | ansible.builtin.map(attribute='path') | ansible.builtin.sort }}.
+    success_msg: >-
+      run_php_extensions_disable_unmanaged removed exactly the unmanaged
+      activation symlinks (incl. the planted ones) and kept every builtin and
+      enabled extension.
+  vars:
+    __testing_strict_kept_regex: >-
+      .*/[0-9]+-({{
+        ((run_php_extensions_enabled | ansible.builtin.default([])) + __run_php_extensions_builtin)
+        | ansible.builtin.unique
+        | ansible.builtin.map('ansible.builtin.regex_escape')
+        | ansible.builtin.join('|')
+      }})\.ini$
+    __testing_strict_links_expected: >-
+      {{
+        __testing_strict_links_before['files']
+        | ansible.builtin.map(attribute='path')
+        | ansible.builtin.select('ansible.builtin.match', __testing_strict_kept_regex)
+        | ansible.builtin.sort
+      }}
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+
+# The canonical file in mods-available/ is deliberately not touched by the
+# role (a later "phpenmod faketest" would re-activate it); remove the canary.
+- name: "Molecule | Verify | Strict ownership: remove the fake canonical extension INI (Debian-like)"
+  ansible.builtin.file:
+    path: "{{ __run_php_config_mods_available_dir_path }}/faketest.ini"
+    state: "absent"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+
 ## Unfulfillable run_php_version pin (platforms shipping a single PHP series)
 #
 # openSUSE Leap has no parallel package family and no module stream to select
