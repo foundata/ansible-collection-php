@@ -1,0 +1,8 @@
+---
+
+trivial:
+  - >
+    ``run`` role - The ``run_php_extensions_disable_unmanaged`` documentation
+    now spells out the same-package sibling pitfall: for example,
+    ``php<version>-pgsql`` ships both ``pgsql`` and ``pdo_pgsql``, so enabling
+    only ``pgsql`` disables the unlisted sibling in strict mode.

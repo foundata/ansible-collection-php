@@ -508,6 +508,12 @@ in as package dependencies but not classified as base (most notably
 `opcache`) ARE disabled when unlisted, so add them to
 `run_php_extensions_enabled` if you want to keep them active.
 
+The same applies to sibling extensions shipped by one package: for example,
+`php<version>-pgsql` contains both `pgsql` and `pdo_pgsql`, so enabling only
+`pgsql` disables the sibling `pdo_pgsql` in strict mode. Declare every
+extension you use (e.g. both `pgsql` and `pdo_pgsql`); listing a sibling
+costs nothing as it maps to the already installed package.
+
 On RHEL-like platforms and SUSE-like platforms, PHP extension drop-ins are
 package-owned files in a shared INI scan directory (for example `/etc/php.d/`
 on RHEL-like platforms and `/etc/php8/conf.d/` on openSUSE). The role does
