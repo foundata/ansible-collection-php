@@ -2,6 +2,94 @@
 
 ---
 
+### Configuration cleanup. Runs BEFORE the package removal on purpose: the
+### managed [global] block has to leave php-fpm.conf while the file still
+### exists, otherwise RPM platforms would preserve the modified conffile as
+### php-fpm.conf.rpmsave and Debian would keep the block for the next install.
+
+- name: "Setup | Uninstall | Find config files in the role-managed directories"
+  ansible.builtin.find:
+    paths: "{{ __run_php_uninstall_config_dir_paths }}"
+    patterns:
+      - "*.ini"
+      - "*.conf"
+    file_type: "file"
+    hidden: true
+  register: __run_php_uninstall_find_result
+
+
+# Historical files (e.g. pools removed or renamed since deployment) cannot be
+# derived from the current variables, so the directories get swept for files
+# carrying the role's ownership marker. The name-based lists below still cover
+# files from releases that predate the marker.
+- name: "Setup | Uninstall | Determine marker-managed config files"
+  ansible.builtin.command:
+    argv: >-
+      {{
+        [__run_php_grep_exec_path, '-l', '-s', '--', __run_php_config_file_marker]
+        + (__run_php_uninstall_find_result['files']
+           | ansible.builtin.map(attribute='path') | ansible.builtin.list)
+      }}
+  register: __run_php_uninstall_owned_result
+  changed_when: false
+  failed_when:
+    - __run_php_uninstall_owned_result['rc'] not in [0, 1, 2]
+  when:
+    - (__run_php_uninstall_find_result['files'] | ansible.builtin.length) > 0
+
+
+- name: "Setup | Uninstall | Remove role-managed config files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  vars:
+    # The role's own INI namespace, identified by filename.
+    __run_php_uninstall_ini_owned: >-
+      {{
+        __run_php_uninstall_find_result['files']
+        | ansible.builtin.map(attribute='path')
+        | ansible.builtin.select('ansible.builtin.search', '/99-managed[^/]*\.ini$')
+        | ansible.builtin.list
+      }}
+    # Pool files derivable from the current variable value.
+    __run_php_uninstall_pools_declared: >-
+      {{
+        (run_php_fpm_pools | ansible.builtin.default({})).keys()
+        | ansible.builtin.map('ansible.builtin.regex_replace', '^',
+            __run_php_config_fpm_pool_dir_path ~ '/')
+        | ansible.builtin.map('ansible.builtin.regex_replace', '$', '.conf')
+        | ansible.builtin.list
+      }}
+  loop: >-
+    {{
+      ((__run_php_uninstall_owned_result['stdout_lines'] | ansible.builtin.default([]))
+       + __run_php_uninstall_ini_owned
+       + __run_php_uninstall_pools_declared)
+      | ansible.builtin.unique
+    }}
+  loop_control:
+    label: "{{ item }}"
+
+
+- name: "Setup | Uninstall | Check if the main php-fpm.conf exists"
+  ansible.builtin.stat:
+    path: "{{ __run_php_config_fpm_main_file_path }}"
+  register: __run_php_uninstall_fpm_main_stat
+
+
+# The pool-include line the role ensures is deliberately kept: it is stock
+# distribution content, not role-specific configuration.
+- name: "Setup | Uninstall | Remove the managed [global] block from php-fpm.conf"
+  ansible.builtin.blockinfile:
+    path: "{{ __run_php_config_fpm_main_file_path }}"
+    marker: ";;; {mark} ANSIBLE MANAGED BLOCK ;;;"
+    state: "absent"
+  when:
+    - __run_php_uninstall_fpm_main_stat['stat']['exists']
+
+
+### Package removal.
+#
 # The role enumerates every SAPI + extension package it could have installed so
 # the absent state cleans up regardless of variable choices:
 # __run_php_packages_uninstall is the union of every SAPI and every extension
@@ -16,15 +104,39 @@
 # the uninstall list to only packages actually present on the host before
 # handing it to the package module to prevent this error.
 
+# Plain "rpm -q" needs no Python bindings, so it can tell which helpers are
+# missing before anything gets installed. Helpers that were already present
+# (python3-rpm always is on EL, dnf itself needs it) are left alone at the end.
+# The query goes by capability (--whatprovides), not by name: on openSUSE the
+# helper names are capabilities resolved to versioned packages (python3-rpm ->
+# python313-rpm), which a name-based query would never report as installed.
+- name: "Setup | Uninstall | Determine which package_facts helpers are not yet installed"
+  ansible.builtin.command:
+    argv: "{{ ['rpm', '-q', '--whatprovides'] + __run_php_uninstall_helper_packages }}"
+  register: __run_php_uninstall_helper_query
+  changed_when: false
+  failed_when: false
+  when:
+    - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
+
+
+- name: "Setup | Uninstall | Remember the package_facts helpers this role adds"
+  ansible.builtin.set_fact:
+    __run_php_uninstall_helpers_added: >-
+      {{
+        (__run_php_uninstall_helper_query['stdout_lines'] | ansible.builtin.default([]))
+        | ansible.builtin.select('ansible.builtin.search', '^no package provides')
+        | ansible.builtin.map('ansible.builtin.regex_replace',
+            '^no package provides (\S+).*$', '\1')
+        | ansible.builtin.list
+      }}
+  when:
+    - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
+
+
 - name: "Setup | Uninstall | Install python3-rpm on Red Hat and SUSE (and python3-libdnf5 on Fedora) for package_facts"
   ansible.builtin.package:
-    name: >-
-      {{
-        ['python3-rpm']
-        + (['python3-libdnf5']
-           if (ansible_facts['distribution'] | ansible.builtin.lower) == 'fedora'
-           else [])
-      }}
+    name: "{{ __run_php_uninstall_helper_packages }}"
     state: "present"
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
@@ -49,3 +161,34 @@
   when:
     - __run_php_packages_uninstall is ansible.builtin.defined
     - (__run_php_packages_uninstall_installed | ansible.builtin.length) > 0
+
+
+# The capabilities have to be resolved to the package names that ended up
+# providing them: removing by capability silently matches nothing in the
+# package module (openSUSE again, python3-rpm -> python313-rpm).
+- name: "Setup | Uninstall | Resolve the package names of the helpers this role installed"
+  ansible.builtin.command:
+    argv: >-
+      {{
+        ['rpm', '-q', '--whatprovides', '--qf', '%{NAME}\n']
+        + __run_php_uninstall_helpers_added
+      }}
+  register: __run_php_uninstall_helper_providers
+  changed_when: false
+  when:
+    - __run_php_uninstall_helpers_added is ansible.builtin.defined
+    - (__run_php_uninstall_helpers_added | ansible.builtin.length) > 0
+
+
+- name: "Setup | Uninstall | Remove the package_facts helpers this role installed"
+  ansible.builtin.package:
+    name: >-
+      {{
+        __run_php_uninstall_helper_providers['stdout_lines']
+        | ansible.builtin.unique
+        | ansible.builtin.list
+      }}
+    state: "absent"
+  when:
+    - __run_php_uninstall_helpers_added is ansible.builtin.defined
+    - (__run_php_uninstall_helpers_added | ansible.builtin.length) > 0

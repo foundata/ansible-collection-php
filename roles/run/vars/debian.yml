@@ -29,6 +29,17 @@ __run_php_sapi_packages_map:
     - "{{ __run_php_package_prefix }}cli"
 
 
+# apt does not remove no-longer-needed dependencies on its own (unlike dnf and
+# zypper), so the version-scoped dependency chain of the SAPI packages has to
+# be listed for removal explicitly. The version-neutral php-common is
+# deliberately NOT included: it is shared across PHP version families and
+# removing it would cascade into any other php<ver>-* family installed outside
+# of this role.
+__run_php_packages_uninstall_extra:
+  - "{{ __run_php_package_prefix }}common"
+  - "{{ __run_php_package_prefix }}readline"
+
+
 # Extensions that are part of the base PHP install on Debian-like and need
 # no extra package. These appear in mods-available/ after a fresh
 # php<ver>-cli / php<ver>-fpm install (php<ver>-common ships them) plus the

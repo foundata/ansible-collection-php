@@ -1,0 +1,20 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - ``run_php_state: "absent"`` only removed packages, so rendered
+    INI drop-ins, FPM pool files (which can carry credentials in ``env`` /
+    ``php_admin_value`` entries) and the managed ``[global]`` block survived the
+    uninstall. All rendered files now carry an ownership marker; the uninstall
+    sweeps the configuration directories for it (removing renamed or de-listed
+    pools as well), removes the role's INI namespace and currently declared pool
+    files by name (covering deployments that predate the marker), and strips the
+    managed block from ``php-fpm.conf`` before the package removal, so RPM
+    platforms no longer keep it in a ``php-fpm.conf.rpmsave``.
+  - >
+    ``run`` role - ``run_php_state: "absent"`` installed ``python3-rpm`` (and
+    ``python3-libdnf5`` on Fedora) for its package inventory but never removed
+    them, so an uninstall could leave more packages behind than it found. Helpers
+    that were absent before are now removed again at the end; helpers that were
+    already present (like ``python3-rpm`` on EL, which dnf itself needs) are left
+    alone.

@@ -1,4 +1,5 @@
 {%- from '_php_macros.j2' import render_ini_scope -%}
+{{ __run_php_config_file_marker }}
 ; {{ ansible_managed }}
 
 {{ render_ini_scope(__run_php_render_scope) }}

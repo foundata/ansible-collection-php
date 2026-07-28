@@ -208,10 +208,16 @@ __run_php_packages_uninstall: >-
       | ansible.builtin.flatten)
      + (__run_php_extensions_map_resources.values()
         | ansible.builtin.map(attribute='packages')
-        | ansible.builtin.flatten))
+        | ansible.builtin.flatten)
+     + __run_php_packages_uninstall_extra)
     | ansible.builtin.unique
     | ansible.builtin.list
   }}
+
+# Companion packages to remove additionally on uninstall. Needed on platforms
+# whose package manager does not remove no-longer-needed dependencies on its
+# own (apt), where the SAPI packages leave their dependency chain behind.
+__run_php_packages_uninstall_extra: []
 
 
 # List of package names to be removed unconditionally before installation
@@ -288,6 +294,45 @@ __run_php_config_ini_dropin_filename: "99-managed.ini"
 # directory as the shared drop-in (per-SAPI on Debian-like, shared dir on
 # RHEL/SUSE).
 __run_php_config_ini_extension_dropin_filename_format: "99-managed-{extension}.ini"
+
+
+# Ownership marker written into every file this role renders (INI drop-ins and
+# FPM pool files). It lets the uninstall identify the role's own files in
+# directories that are shared with the distribution packages and the operator,
+# including files whose name the role can no longer derive (e.g. pools removed
+# from run_php_fpm_pools since deployment). ";" starts a comment in both
+# php.ini and FPM pool syntax.
+__run_php_config_file_marker: "; Managed by Ansible (foundata.php.run)"
+
+# Path to grep, used to find the marker above during uninstall.
+__run_php_grep_exec_path: "/usr/bin/grep"
+
+# Python bindings package_facts needs on RPM platforms; installed on demand by
+# the uninstall tasks (and removed again there when they were absent before).
+__run_php_uninstall_helper_packages: >-
+  {{
+    ['python3-rpm']
+    + (['python3-libdnf5']
+       if (ansible_facts['distribution'] | ansible.builtin.lower) == 'fedora'
+       else [])
+  }}
+
+# Directories the uninstall sweeps for marker-carrying files. The per-SAPI INI
+# directories are empty strings on platforms with a single shared INI scan
+# directory, so empty entries are dropped.
+#
+# Lazy / late-bound evaluation: Jinja renders this variable on access, after
+# tasks/init.yml loaded the platform vars file that sets the paths.
+__run_php_uninstall_config_dir_paths: >-
+  {{
+    [__run_php_config_ini_shared_dir_path,
+     __run_php_config_ini_fpm_dir_path,
+     __run_php_config_ini_cli_dir_path,
+     __run_php_config_fpm_pool_dir_path]
+    | ansible.builtin.reject('ansible.builtin.equalto', '')
+    | ansible.builtin.unique
+    | ansible.builtin.list
+  }}
 
 
 # PHP-FPM service name. Set in platform vars files. Examples:
