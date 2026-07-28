@@ -7,6 +7,10 @@ bugfixes:
     alternative versions as DNF module streams that keep the unversioned ``php-*``
     package names. The prefix now stays ``php-`` on EL9.
   - >
+    ``run`` role - Pinning ``run_php_version`` on an EL9 host that had no php module
+    stream enabled (the usual case) aborted the run: the detection of the currently
+    enabled stream passed the ``None`` returned by ``regex_search`` on to ``first``.
+  - >
     ``run`` role - The EL9 DNF module stream tasks
     (``tasks/setup/install/redhat_9.yml``) were unreachable on AlmaLinux, Rocky
     Linux, and CentOS Stream because the platform dispatch resolves

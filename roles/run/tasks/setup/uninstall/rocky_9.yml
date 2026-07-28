@@ -1,0 +1,16 @@
+# Uninstall: Tasks specific to: Rocky Linux 9 (os_family or distribution;
+# distribution_major_version)
+#
+# Only tasks specific to the platform and its functionality should be included
+# here. Tasks in this file will be executed before those defined in
+# uninstall/default.yml.
+
+---
+
+# The platform dispatch resolves per-distribution filenames only (there is no
+# family-plus-major-version candidate like redhat_9.yml on derivatives), so
+# each EL9 derivative needs its own file here. The DNF module stream handling
+# is identical across the whole EL9 family and therefore shared via include.
+- name: "Setup | Uninstall | Rocky 9 | Include the shared EL9 module stream tasks"
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/setup/uninstall/redhat_9.yml"

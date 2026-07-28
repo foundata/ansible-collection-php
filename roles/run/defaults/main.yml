@@ -78,10 +78,15 @@ run_php_fpm_service_state: "enabled"
 # On EL9 (RHEL, AlmaLinux, Rocky, CentOS Stream 9), alternative versions ship
 # natively as DNF module streams (`php:8.1`, `php:8.2`, `php:8.3`), so no
 # third-party repository is needed there. The role enables the matching stream
-# before installing; package names stay unversioned (`php-*`). An enabled module
-# stream is retained state: `run_php_state: "absent"` removes the packages but
-# does not reset the stream (use `dnf module reset php` manually if you need the
-# distribution default back).
+# before installing; package names stay unversioned (`php-*`).
+#
+# The module stream is managed on EL9 only while a concrete version is pinned
+# here. In that case `run_php_state: "absent"` also runs `dnf module reset php`,
+# so an uninstall does not leave the host pinned to this role's PHP version.
+# Note that the reset is unconditional: if you had enabled a php module stream
+# yourself before adopting this role, that stream is reset as well and you have
+# to re-enable it manually. With `run_php_version: "default"` the role never
+# touches the module stream, in neither direction.
 #
 # Managing multiple parallel PHP version streams on the same host with a single
 # role invocation is not supported. If you need that, invoke the role multiple

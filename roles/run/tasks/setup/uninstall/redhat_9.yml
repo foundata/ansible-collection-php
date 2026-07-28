@@ -1,0 +1,26 @@
+# Uninstall: Tasks specific to: RedHat 9 (os_family or distribution;
+# distribution_major_version)
+#
+# Only tasks specific to the platform and its functionality should be included
+# here. Tasks in this file will be executed before those defined in
+# uninstall/default.yml.
+
+---
+
+# An enabled php module stream is host state that would otherwise survive
+# "state: absent" and keep a later manual "dnf install php-*" pinned to the
+# version this role selected. The reset is symmetric to the install side: it
+# only happens when a version is pinned, because that is the only case in which
+# the role manages the module stream at all. It is unconditional otherwise, so
+# a stream an operator enabled before adopting the role is reset as well (see
+# the run_php_version documentation).
+#
+# Running before the package removal in uninstall/default.yml is fine:
+# resetting a module with installed content is allowed and the packages stay
+# removable afterwards.
+- name: "Setup | Uninstall | RedHat 9 | Reset the php DNF module stream"
+  ansible.builtin.command:
+    cmd: "dnf -y module reset php"
+  changed_when: true
+  when:
+    - run_php_version != 'default'

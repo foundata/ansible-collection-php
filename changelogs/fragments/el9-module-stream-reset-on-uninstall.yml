@@ -1,0 +1,11 @@
+---
+
+minor_changes:
+  - >
+    ``run`` role - On EL9, ``run_php_state: "absent"`` now runs
+    ``dnf module reset php`` when a concrete ``run_php_version`` is pinned, so an
+    uninstall no longer leaves the host pinned to the PHP version this role
+    selected. The reset is unconditional: a php module stream enabled before this
+    role was adopted is reset as well and has to be re-enabled manually. With
+    ``run_php_version: "default"`` the module stream is not touched in either
+    direction.
