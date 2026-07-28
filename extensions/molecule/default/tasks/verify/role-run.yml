@@ -513,6 +513,76 @@
       The testpool FPM listen socket '/run/php-fpm-testpool.sock' exists and is a socket.
 
 
+## Rejection tests: init-time input validation
+#
+# Re-run only the role's init with hostile inputs and assert the expected
+# assert stops the run. Evaluation-only (tasks_from: init never touches the
+# system), so these are safe on every platform.
+
+- name: "Molecule | Verify | Validate rejection of a malformed run_php_version"
+  block:
+
+    - name: "Molecule | Verify | Run init with a malformed run_php_version (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.php.run"
+        tasks_from: "init"
+      vars:
+        run_php_version: "8.3; rm -rf /"
+
+    - name: "Molecule | Verify | Fail because the malformed run_php_version was accepted"
+      ansible.builtin.fail:
+        msg: >-
+          run_php_version '8.3; rm -rf /' passed the role's init although it is
+          neither "default" nor a MAJOR.MINOR version. The value reaches package
+          names and the EL9 "dnf module enable" argument, so it must be rejected.
+
+  rescue:
+
+    - name: "Molecule | Verify | Assert the version format assert caused the failure"
+      ansible.builtin.assert:
+        that:
+          - ansible_failed_task['name'] is
+            ansible.builtin.search("run_php_version is 'default' or a MAJOR.MINOR version")
+        fail_msg: >-
+          The failure was raised by '{{ ansible_failed_task['name'] }}', not by the
+          run_php_version format assert.
+        success_msg: >-
+          A malformed run_php_version is rejected by the role's init.
+
+
+- name: "Molecule | Verify | Validate rejection of a path-escaping pool name"
+  block:
+
+    - name: "Molecule | Verify | Run init with a path-escaping pool name (must fail)"
+      ansible.builtin.include_role:
+        name: "foundata.php.run"
+        tasks_from: "init"
+      vars:
+        run_php_fpm_pools:
+          "../../etc/cron.d/evil":
+            pm: "static"
+
+    - name: "Molecule | Verify | Fail because the path-escaping pool name was accepted"
+      ansible.builtin.fail:
+        msg: >-
+          The pool name '../../etc/cron.d/evil' passed the role's init although pool
+          names become pool.d/<name>.conf paths and [<name>] section headers, so it
+          must be rejected.
+
+  rescue:
+
+    - name: "Molecule | Verify | Assert the pool name assert caused the failure"
+      ansible.builtin.assert:
+        that:
+          - ansible_failed_task['name'] is
+            ansible.builtin.search('every key in run_php_fpm_pools is a safe pool name')
+        fail_msg: >-
+          The failure was raised by '{{ ansible_failed_task['name'] }}', not by the
+          pool name assert.
+        success_msg: >-
+          A path-escaping pool name is rejected by the role's init.
+
+
 ## Unfulfillable run_php_version pin (platforms shipping a single PHP series)
 #
 # openSUSE Leap has no parallel package family and no module stream to select
@@ -591,12 +661,58 @@
         - true
 
 
+    # Simulate a pool that was renamed since deployment: the marker-carrying
+    # file exists on disk but is absent from run_php_fpm_pools, so only the
+    # uninstall's marker sweep can find it.
+    - name: "Molecule | Verify | Plant a renamed historical pool file before the uninstall"
+      ansible.builtin.copy:
+        content: |
+          {{ __run_php_config_file_marker }}
+          [renamed-leftover]
+          user = nobody
+          pm = static
+          pm.max_children = 1
+        dest: "{{ __run_php_config_fpm_pool_dir_path }}/renamed-leftover.conf"
+        owner: "root"
+        group: "root"
+        mode: "u=rw,g=,o="
+
+
     - name: "Molecule | Verify | Uninstall the role without a pinned version"
       ansible.builtin.include_role:
         name: "foundata.php.run"
       vars:
         run_php_state: "absent"
         run_php_version: "default"
+
+
+    - name: "Molecule | Verify | Stat role-managed config files after the uninstall"
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: "__testing_uninstall_leftover_stat"
+      loop:
+        - "{{ __run_php_config_fpm_pool_dir_path }}/renamed-leftover.conf"
+        - "{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf"
+        - "{{ __run_php_config_ini_shared_dir_path }}/{{ __run_php_config_ini_dropin_filename }}"
+
+
+    - name: "Molecule | Verify | Assert the uninstall removed the role's configuration"
+      ansible.builtin.assert:
+        that:
+          - __testing_uninstall_leftover_stat['results']
+            | ansible.builtin.selectattr('stat.exists')
+            | ansible.builtin.list
+            | ansible.builtin.length == 0
+        fail_msg: >-
+          Role-managed configuration survived run_php_state "absent":
+          {{ __testing_uninstall_leftover_stat['results']
+             | ansible.builtin.selectattr('stat.exists')
+             | ansible.builtin.map(attribute='item') | ansible.builtin.list }}.
+          Pool files can carry credentials, and a renamed pool is only found by the
+          ownership marker sweep.
+        success_msg: >-
+          The uninstall removed the declared pool, the renamed historical pool and
+          the INI drop-in.
 
 
     - name: "Molecule | Verify | Read the enabled php module stream after the unpinned uninstall"
