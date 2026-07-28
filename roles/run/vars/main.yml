@@ -70,16 +70,27 @@ __run_php_has_per_sapi_ini: false
 __run_php_version_distribution_default: ""
 
 
+# Whether the platform can install a PHP version other than the one its
+# repositories ship as the distribution stream. True where alternative versions
+# exist as parallel package families (Debian-like, EL10) or as module streams
+# (EL9). Set to false in platform vars files whose repositories carry exactly
+# one PHP series, which makes a pinned run_php_version unfulfillable there
+# (tasks/init.yml warns about it, and the fallback below keeps the role's
+# internal state in sync with what actually gets installed).
+__run_php_version_pin_supported: true
+
+
 # Effective PHP version stream used by the role. Resolves "default" against
-# __run_php_version_distribution_default; otherwise passes the user's pinned
-# value through unchanged.
+# __run_php_version_distribution_default and falls back to it on platforms that
+# cannot honor a pin; otherwise passes the user's pinned value through
+# unchanged.
 #
 # Lazy / late-bound evaluation: Jinja renders this variable on access,
 # after tasks/init.yml loads the platform vars file that sets the inputs.
 __run_php_version_effective: >-
   {{
     __run_php_version_distribution_default
-    if run_php_version == 'default'
+    if (run_php_version == 'default' or not __run_php_version_pin_supported)
     else run_php_version
   }}
 

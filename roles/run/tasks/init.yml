@@ -145,6 +145,27 @@
     - run_php_version == 'default'
 
 
+# Warning instead of a hard failure: mixed inventories may set one
+# run_php_version in group_vars for hosts of several platforms, and failing
+# would force "when:" gymnastics on the user. The run continues with the
+# distribution stream, which __run_php_version_effective already resolves to.
+- name: "Init | Warn when a pinned run_php_version cannot be honored on this platform"
+  ansible.builtin.fail:
+    msg: >
+      run_php_version is pinned to '{{ run_php_version }}', but
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+      ships exactly one PHP series in its repositories and offers no parallel package
+      family or module stream to select from. The role continues with the distribution
+      stream ({{ __run_php_version_distribution_default }}) instead. Set
+      run_php_version to "default" or "{{ __run_php_version_distribution_default }}"
+      for this host to silence this warning, or use a platform that supports pinning.
+  when:
+    - run_php_version != 'default'
+    - not __run_php_version_pin_supported
+    - run_php_version != __run_php_version_distribution_default
+  ignore_errors: true # noqa: ignore-errors
+
+
 - name: "Init | Assert: every entry in run_php_extensions_enabled is lowercase ([a-z0-9_]+)"
   ansible.builtin.assert:
     that:

@@ -304,6 +304,17 @@ yourself before adopting this role, that stream is reset as well and you have
 to re-enable it manually. With `run_php_version: "default"` the role never
 touches the module stream, in neither direction.
 
+Pinning is not possible on every supported platform. openSUSE Leap 16.x ships
+exactly one PHP series (the `php8` packages, 8.4 in Leap 16.0) with no
+parallel package family and no module stream to select from, and its package
+names, INI paths, service and binary are unversioned. A pinned value other
+than the distribution stream is therefore reported as a warning during the
+role's initialization and then ignored: the role installs the distribution
+stream rather than silently installing a version other than the one it was
+asked for. The run itself is not aborted, so a single `run_php_version` in
+`group_vars` stays usable for inventories that mix such a platform with
+others.
+
 Managing multiple parallel PHP version streams on the same host with a
 single role invocation is not supported. If you need that, invoke the role
 multiple times with different `run_php_version` values and take care that

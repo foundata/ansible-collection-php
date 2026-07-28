@@ -1,0 +1,13 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - A pinned ``run_php_version`` was silently ignored on openSUSE Leap:
+    package names, INI paths, service and binary are unversioned there and the
+    repositories ship exactly one PHP series (``php8``, 8.4 in Leap 16.0), so the role
+    installed the distribution stream while reporting the pinned version as the
+    effective one. The role now resolves the effective version to the distribution
+    stream on platforms that cannot honor a pin, and reports an unfulfillable pin as a
+    warning during initialization. The run continues, so a single ``run_php_version``
+    in ``group_vars`` stays usable for inventories that mix such a platform with
+    others.

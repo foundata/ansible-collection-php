@@ -513,6 +513,33 @@
       The testpool FPM listen socket '/run/php-fpm-testpool.sock' exists and is a socket.
 
 
+## Unfulfillable run_php_version pin (platforms shipping a single PHP series)
+#
+# openSUSE Leap has no parallel package family and no module stream to select
+# a PHP version from, so a pin must resolve to the distribution stream instead
+# of being passed through (which would have the role install one version while
+# reporting another). Evaluation-only: the role is not run again here, the
+# lazy __run_php_version_effective is re-rendered with an overriding pin.
+
+- name: "Molecule | Verify | Assert an unfulfillable run_php_version pin falls back to the distribution stream"
+  vars:
+    run_php_version: "8.3"
+  ansible.builtin.assert:
+    that:
+      - not __run_php_version_pin_supported
+      - __run_php_version_effective == __run_php_version_distribution_default
+    fail_msg: >-
+      With run_php_version pinned to '8.3', __run_php_version_effective resolved to
+      '{{ __run_php_version_effective }}' instead of the distribution stream
+      '{{ __run_php_version_distribution_default }}'. On this platform the pin cannot
+      be honored, so the role would install a different version than it reports.
+    success_msg: >-
+      An unfulfillable run_php_version pin falls back to the distribution stream
+      '{{ __run_php_version_distribution_default }}'.
+  when:
+    - ansible_facts['os_family'] == 'Suse'
+
+
 ## EL9 php DNF module stream (pinned run_php_version)
 #
 # EL9 is the only supported platform family where alternative PHP versions are

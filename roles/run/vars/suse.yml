@@ -20,6 +20,17 @@ __run_php_has_per_sapi_ini: false
 __run_php_version_distribution_default: "8.4"
 
 
+# A pinned run_php_version cannot be honored here: the Leap 16.x repositories
+# contain exactly one PHP series (the php8 packages, 8.4 in Leap 16.0). There
+# are neither parallel package families (no php7-*, php83-*, php84-*) nor DNF
+# module streams to select from, and the package names, INI paths, service and
+# binary are all unversioned ("php8-", "/etc/php8/", "php-fpm.service"). A pin
+# is therefore reported by tasks/init.yml and then ignored in favour of the
+# distribution stream, instead of silently installing a different version than
+# the one the user asked for.
+__run_php_version_pin_supported: false
+
+
 # Package name prefix. openSUSE uses "php8-*" regardless of the point
 # release (the major number stays at 8 across the Leap 16.x cycle).
 __run_php_package_prefix: "php8-"
