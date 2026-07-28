@@ -77,4 +77,4 @@
     - __run_php_link_extension not in run_php_extensions_enabled
     - __run_php_link_extension not in __run_php_extensions_builtin
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: reload php-fpm service"

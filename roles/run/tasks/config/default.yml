@@ -75,7 +75,7 @@
     loop_var: "__run_php_ini_render_target"
     label: "{{ __run_php_ini_render_target['dir'] }}"
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: reload php-fpm service"
 
 
 - name: "Config | Default | Remove shared/per-SAPI INI drop-in per target when scope is empty"
@@ -89,7 +89,7 @@
     loop_var: "__run_php_ini_render_target"
     label: "{{ __run_php_ini_render_target['dir'] }}"
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: reload php-fpm service"
 
 
 # Per-extension INI drop-ins.
@@ -177,7 +177,7 @@
     loop_var: "__run_php_ext_render_triple"
     label: "{{ __run_php_ext_render_triple['dir'] }} / {{ __run_php_ext_render_triple['extension'] }}"
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: reload php-fpm service"
 
 
 # Stale per-extension INI cleanup: any file in the target directories whose
@@ -216,7 +216,7 @@
       | ansible.builtin.list
     }}
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: reload php-fpm service"
 
 
 # PHP-FPM [global] directives via blockinfile.
@@ -253,7 +253,8 @@
   when:
     - __run_php_fpm_enabled
   notify:
-    - "Handlers | PHP-FPM service restart"
+    - "run_php: validate configuration"
+    - "run_php: restart php-fpm service"
 
 
 # PHP-FPM pool files. Rendered root-only (pools may carry application
@@ -284,7 +285,8 @@
     loop_var: "__run_php_pool_item"
     label: "{{ __run_php_pool_item['key'] }}"
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: validate configuration"
+    - "run_php: reload php-fpm service"
 
 
 - name: "Config | Default | Remove PHP-FPM pool files (state: absent)"
@@ -299,7 +301,8 @@
     loop_var: "__run_php_pool_item"
     label: "{{ __run_php_pool_item['key'] }}"
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: validate configuration"
+    - "run_php: reload php-fpm service"
 
 
 - name: "Config | Default | Discover existing PHP-FPM pool files"
@@ -333,7 +336,8 @@
     - __run_php_fpm_enabled
     - run_php_fpm_pools_delete_unmanaged
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: validate configuration"
+    - "run_php: reload php-fpm service"
 
 
 # Ensure the pool-include directive is present in the main php-fpm.conf.
@@ -353,4 +357,5 @@
   when:
     - __run_php_fpm_enabled
   notify:
-    - "Handlers | PHP-FPM service reload"
+    - "run_php: validate configuration"
+    - "run_php: reload php-fpm service"

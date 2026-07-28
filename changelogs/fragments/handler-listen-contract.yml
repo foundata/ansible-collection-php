@@ -1,0 +1,8 @@
+---
+
+trivial:
+  - >
+    ``run`` role - Handlers are now notified via lowercase, list-valued ``listen``
+    aliases (``run_php: ...``) as the style guide requires, instead of their
+    display names. The display names are unchanged, so notifications by name keep
+    working.

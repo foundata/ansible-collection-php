@@ -2,6 +2,31 @@
 
 ---
 
+# Defined first on purpose: handlers run in definition order, so an invalid
+# configuration is caught before the service is asked to pick it up.
+#
+# Deliberately NOT gated on run_php_fpm_service_state: validation has to happen
+# even when the service is left alone ("disabled", "unmanaged"), otherwise a
+# broken pool file or [global] block would end the run successfully and only
+# surface at the next (possibly manual) service start.
+- name: "Handlers | Validate PHP-FPM configuration"
+  ansible.builtin.command:
+    argv:
+      - "{{ __run_php_fpm_exec_path }}"
+      - "--test"
+      - "--fpm-config"
+      - "{{ __run_php_config_fpm_main_file_path }}"
+  register: __run_php_validation_result
+  changed_when:
+    - false
+  failed_when:
+    - __run_php_validation_result is ansible.builtin.failed
+  when:
+    - __run_php_fpm_enabled
+  listen:
+    - "run_php: validate configuration"
+
+
 - name: "Handlers | PHP-FPM service restart"
   ansible.builtin.service:
     name: "{{ __run_php_fpm_service_name }}"
@@ -10,6 +35,8 @@
     - __run_php_fpm_enabled
     - run_php_fpm_service_state in ['enabled', 'running']
     - (__run_php_fpm_service_name | ansible.builtin.length) > 0
+  listen:
+    - "run_php: restart php-fpm service"
 
 
 - name: "Handlers | PHP-FPM service reload"
@@ -20,3 +47,5 @@
     - __run_php_fpm_enabled
     - run_php_fpm_service_state in ['enabled', 'running']
     - (__run_php_fpm_service_name | ansible.builtin.length) > 0
+  listen:
+    - "run_php: reload php-fpm service"

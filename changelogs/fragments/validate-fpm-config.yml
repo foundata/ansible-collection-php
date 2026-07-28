@@ -1,0 +1,11 @@
+---
+
+bugfixes:
+  - >
+    ``run`` role - The rendered PHP-FPM configuration (pool files and the managed
+    ``[global]`` block) was only syntax-checked indirectly by the service reload,
+    so with ``run_php_fpm_service_state`` set to ``disabled`` or ``unmanaged`` an
+    invalid configuration could complete the run successfully and only surface at
+    the next (possibly manual) service start. Every change to FPM configuration now
+    notifies a validation handler that runs ``php-fpm --test`` regardless of the
+    service state.
