@@ -193,14 +193,14 @@ The following variables can be configured for this role:
 | `run_php_state` | `str` | No | `"present"` | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_php_state) |
 | `run_php_autoupgrade` | `bool` | No | `false` | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
 | `run_php_fpm_service_state` | `str` | No | `"enabled"` | Defines the status of the PHP-FPM (FastCGI Process Manager) service. FPM is the PHP SAPI (Server API, see `run_php_sapis` for the full primer) intended to be reached from a web server such as Apache or NGINX over a FastCGI socket; it is the only PHP […](#variable-run_php_fpm_service_state) |
-| `run_php_version` | `str` | No | `"default"` | Selects which PHP version stream this role manages on the target host.<br><br>The value `"default"` keeps the role aligned with the PHP version stream shipped by the distribution in its standard repositories. The exact version that results depends on […](#variable-run_php_version) |
+| `run_php_version` | `str` | No | `"default"` | Selects which PHP version stream this role manages on the target host. Allowed values are `"default"` or a plain `MAJOR.MINOR` version such as `"8.3"` (no patch level or other decoration; the role fails during initialization otherwise).<br><br>The […](#variable-run_php_version) |
 | `run_php_sapis` | `list` | No | `['fpm', 'cli']` | List of PHP SAPIs the role should install and manage on the host. This role manages the whole PHP runtime, not one specific SAPI and this variable defines which SAPI(s) to address.<br><br>A PHP SAPI (Server API) is the interface layer through which […](#variable-run_php_sapis) |
 | `run_php_extensions_enabled` | `list` | No | `[]` | List of PHP extension short names to enable (and install if needed).<br><br>A "short name" is the name PHP itself uses in the `extension=...` INI directive (`extension=pgsql`, `extension=mbstring`, ...) and the same name distributions use as a suffix […](#variable-run_php_extensions_enabled) |
 | `run_php_extensions_disable_unmanaged` | `bool` | No | `false` | Controls whether the role disables extensions that are not declared in `run_php_extensions_enabled`.<br><br>This is intentionally best-effort. PHP has no portable, cross-platform extension activation registry. Built-in extensions and extensions […](#variable-run_php_extensions_disable_unmanaged) |
 | `run_php_settings` | `dict` | No | `{}` | PHP INI configuration as a scope-keyed nested dictionary. The role renders one or more drop-in `.ini` files into the appropriate SAPI INI directory on Debian-like systems, or into the single shared INI scan directory on shared-dir platforms […](#variable-run_php_settings) |
 | `run_php_extension_settings` | `dict` | No | `{}` | INI directives applied per extension, scoped the same way as `run_php_settings`. Top-level keys are configuration scopes (`shared`, `fpm`, `cli`); second-level keys are extension short names; third-level keys are flat INI directives for that […](#variable-run_php_extension_settings) |
 | `run_php_fpm_pool_defaults` | `dict` | No | `{}` | Defaults merged underneath every pool in `run_php_fpm_pools` at render time. Per-pool entries override defaults on any matching key (deep merge: pool's `php_admin_value.memory_limit` overrides the default's […](#variable-run_php_fpm_pool_defaults) |
-| `run_php_fpm_pools` | `dict` | No | `{}` | PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also the filename used in `pool.d/.conf`. Honored only when `"fpm"` is in `run_php_sapis`.<br><br>Pool files are rendered readable by `root` only (mode `0600`) because `env` and […](#variable-run_php_fpm_pools) |
+| `run_php_fpm_pools` | `dict` | No | `{}` | PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also the filename used in `pool.d/.conf` and the `[]` section header of the pool file. Pool names must therefore match `[A-Za-z0-9._-]+` (no path separators, no `..`, no brackets […](#variable-run_php_fpm_pools) |
 | `run_php_fpm_pools_delete_unmanaged` | `bool` | No | `false` | Controls whether the role removes pool files from `pool.d/` that are not declared in `run_php_fpm_pools`.<br><br>When `true`, any `*.conf` file in `pool.d/` whose stem does not match an entry in `run_php_fpm_pools` is deleted on every role run. This […](#variable-run_php_fpm_pools_delete_unmanaged) |
 | `run_php_fpm_service_settings` | `dict` | No | `{}` | PHP-FPM service-level settings, written into the `[global]` section of the distribution's main `php-fpm.conf` via `ansible.builtin.blockinfile`. The role does not overwrite the distribution file, only the managed block inside it.<br><br>Top-level […](#variable-run_php_fpm_service_settings) |
 
@@ -278,6 +278,9 @@ variable is ignored.
 [*⇑ Back to ToC ⇑*](#toc)
 
 Selects which PHP version stream this role manages on the target host.
+Allowed values are `"default"` or a plain `MAJOR.MINOR` version such as
+`"8.3"` (no patch level or other decoration; the role fails during
+initialization otherwise).
 
 The value `"default"` keeps the role aligned with the PHP version stream
 shipped by the distribution in its standard repositories. The exact version
@@ -839,8 +842,10 @@ Rendered as `env[<name>] = <value>` inside the pool block.
 [*⇑ Back to ToC ⇑*](#toc)
 
 PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also
-the filename used in `pool.d/<name>.conf`. Honored  only when `"fpm"` is in
-`run_php_sapis`.
+the filename used in `pool.d/<name>.conf` and the `[<name>]` section header
+of the pool file. Pool names must therefore match `[A-Za-z0-9._-]+` (no path
+separators, no `..`, no brackets or whitespace); the role fails during
+initialization otherwise. Honored only when `"fpm"` is in `run_php_sapis`.
 
 Pool files are rendered readable by `root` only (mode `0600`) because `env`
 and `php_admin_value` entries commonly carry application credentials such as

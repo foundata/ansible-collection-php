@@ -1,0 +1,16 @@
+---
+
+security_fixes:
+  - >
+    ``run`` role - Pool names from ``run_php_fpm_pools`` were used verbatim as
+    ``pool.d/<name>.conf`` paths and ``[<name>]`` section headers, so a name
+    containing path separators, ``..``, brackets or whitespace could target files
+    outside the pool directory or render a malformed section. Pool names must now
+    match ``[A-Za-z0-9._-]+`` and the role fails during initialization otherwise.
+
+bugfixes:
+  - >
+    ``run`` role - ``run_php_version`` accepted arbitrary strings which reached
+    package names and, on EL9, the ``dnf module enable php:<value>`` command. The
+    role now fails during initialization unless the value is ``default`` or a plain
+    ``MAJOR.MINOR`` version.

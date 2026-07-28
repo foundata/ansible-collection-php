@@ -61,7 +61,10 @@ run_php_autoupgrade: false
 # - Choices: enabled, disabled, running, unmanaged
 run_php_fpm_service_state: "enabled"
 
-# Selects which PHP version stream this role manages on the target host.
+# Selects which PHP version stream this role manages on the target host. Allowed
+# values are `"default"` or a plain `MAJOR.MINOR` version such as `"8.3"` (no
+# patch level or other decoration; the role fails during initialization
+# otherwise).
 #
 # The value `"default"` keeps the role aligned with the PHP version stream
 # shipped by the distribution in its standard repositories. The exact version
@@ -531,8 +534,10 @@ run_php_extension_settings: {}
 run_php_fpm_pool_defaults: {}
 
 # PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also
-# the filename used in `pool.d/<name>.conf`. Honored only when `"fpm"` is in
-# `run_php_sapis`.
+# the filename used in `pool.d/<name>.conf` and the `[<name>]` section header of
+# the pool file. Pool names must therefore match `[A-Za-z0-9._-]+` (no path
+# separators, no `..`, no brackets or whitespace); the role fails during
+# initialization otherwise. Honored only when `"fpm"` is in `run_php_sapis`.
 #
 # Pool files are rendered readable by `root` only (mode `0600`) because `env`
 # and `php_admin_value` entries commonly carry application credentials such as

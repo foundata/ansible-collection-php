@@ -145,6 +145,43 @@
     - run_php_version == 'default'
 
 
+# Hard failure (unlike the platform warning below): the value ends up in
+# package names and, on EL9, in the "dnf module enable php:<value>" argument,
+# so anything but a plain version keeps the run from doing what it says.
+- name: "Init | Assert: run_php_version is 'default' or a MAJOR.MINOR version"
+  ansible.builtin.assert:
+    that:
+      - run_php_version == 'default' or
+        (run_php_version is ansible.builtin.match('^[0-9]+\.[0-9]+$'))
+    fail_msg: >-
+      run_php_version is '{{ run_php_version }}', which is neither "default" nor a
+      MAJOR.MINOR version such as "8.3". The value is used to build package names
+      (e.g. php8.3-fpm) and module stream identifiers, so it must not carry a patch
+      level, a package name, or any other decoration.
+
+
+# Pool names become both the "pool.d/<name>.conf" filename and the "[<name>]"
+# section header, so a name carrying a path separator, "..", brackets or
+# whitespace would write outside the pool directory or render a broken section.
+- name: "Init | Assert: every key in run_php_fpm_pools is a safe pool name"
+  ansible.builtin.assert:
+    that:
+      - __run_php_pool_names_invalid | ansible.builtin.length == 0
+    fail_msg: >-
+      run_php_fpm_pools contains pool names that are not usable as a filename and
+      PHP-FPM section header: {{ __run_php_pool_names_invalid | ansible.builtin.join(', ') }}.
+      Pool names must match [A-Za-z0-9._-]+ (no path separators, no "..", no brackets
+      or whitespace), because the name is used for both pool.d/<name>.conf and the
+      [<name>] section of the pool file.
+  vars:
+    __run_php_pool_names_invalid: >-
+      {{
+        (run_php_fpm_pools | ansible.builtin.default({})).keys()
+        | ansible.builtin.reject('ansible.builtin.match', '^[A-Za-z0-9][A-Za-z0-9._-]*$')
+        | ansible.builtin.list
+      }}
+
+
 # Warning instead of a hard failure: mixed inventories may set one
 # run_php_version in group_vars for hosts of several platforms, and failing
 # would force "when:" gymnastics on the user. The run continues with the
