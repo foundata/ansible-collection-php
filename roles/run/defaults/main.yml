@@ -46,9 +46,10 @@ run_php_autoupgrade: false
 # can be used to start a service on the first Ansible run without enabling it
 # for boot.
 #
-# `unmanaged`: Service will not start at boot, and Ansible will not manage its
-# running state. This is primarily useful when services are monitored and
-# managed by systems other than Ansible.
+# `unmanaged`: Ansible does not manage the service at all: both the running
+# state and the boot (enablement) state are left exactly as they are. This is
+# primarily useful when services are monitored and managed by systems other than
+# Ansible.
 #
 # The variable is honored only when `"fpm"` appears in `run_php_sapis`. The CLI
 # SAPI does not have a long-running daemon, so there is no service lifecycle to
