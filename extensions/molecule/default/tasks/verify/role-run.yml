@@ -847,6 +847,27 @@
         mode: "u=rw,g=,o="
 
 
+    # An administrator's own pool file (no ownership marker): the sweep must
+    # leave it alone even though it lives in a managed directory. The content
+    # mentions the marker as a substring on purpose: ownership requires the
+    # exact marker line, a mere mention (e.g. quoted in a comment) must not
+    # get the file deleted.
+    - name: "Molecule | Verify | Plant an administrator-owned pool file without the marker"
+      ansible.builtin.copy:
+        content: |
+          ; hand-made by the administrator, not Ansible. Files containing the
+          ; exact "{{ __run_php_config_file_marker }}" line are role-owned;
+          ; this one merely quotes that marker.
+          [admin-own]
+          user = nobody
+          pm = static
+          pm.max_children = 1
+        dest: "{{ __run_php_config_fpm_pool_dir_path }}/admin-own.conf"
+        owner: "root"
+        group: "root"
+        mode: "u=rw,g=,o="
+
+
     - name: "Molecule | Verify | Uninstall the role without a pinned version"
       ansible.builtin.include_role:
         name: "foundata.php.run"
@@ -882,6 +903,20 @@
         success_msg: >-
           The uninstall removed the declared pool, the renamed historical pool and
           the INI drop-in.
+
+
+    - name: "Molecule | Verify | Check the administrator's pool file survived the uninstall"
+      ansible.builtin.stat:
+        path: "{{ __run_php_config_fpm_pool_dir_path }}/admin-own.conf"
+      register: "__testing_uninstall_admin_pool_stat"
+      failed_when:
+        - not __testing_uninstall_admin_pool_stat['stat']['exists']
+
+
+    - name: "Molecule | Verify | Remove the administrator-owned test file"
+      ansible.builtin.file:
+        path: "{{ __run_php_config_fpm_pool_dir_path }}/admin-own.conf"
+        state: "absent"
 
 
     - name: "Molecule | Verify | Read the enabled php module stream after the unpinned uninstall"
