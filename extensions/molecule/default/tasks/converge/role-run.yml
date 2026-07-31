@@ -64,8 +64,10 @@
 
       # Leave the role's best-effort symlink cleanup off for the baseline
       # test - it has side effects on Debian-like that are easier to verify
-      # in a dedicated scenario.
-      run_php_extensions_disable_unmanaged: false
+      # in a dedicated scenario. A string on purpose (as delivered by command
+      # line extra-vars): the role has to coerce boolean arguments, a
+      # truthiness evaluation would treat "false" as enabled.
+      run_php_extensions_disable_unmanaged: "false"
 
       # "shared" scope only: portable across every supported platform.
       # Exercises sectioned INI rendering ("[PHP]"), scalar / bool / string
@@ -139,8 +141,11 @@
 
       # Leave existing distribution "www.conf" (and any other unmanaged
       # pool file) in place - the role's default. A dedicated scenario can
-      # flip this to "true" to exercise strict declarative ownership.
-      run_php_fpm_pools_delete_unmanaged: false
+      # flip this to "true" to exercise strict declarative ownership. A string
+      # on purpose (as delivered by command line extra-vars): the role has to
+      # coerce boolean arguments, a truthiness evaluation would treat "false"
+      # as enabled.
+      run_php_fpm_pools_delete_unmanaged: "false"
 
       # Exercises the blockinfile-managed "[global]" block inside
       # php-fpm.conf on every platform.

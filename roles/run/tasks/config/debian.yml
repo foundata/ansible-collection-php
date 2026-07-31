@@ -48,7 +48,7 @@
     loop_var: "__run_php_disable_unmanaged_target"
     label: "{{ __run_php_disable_unmanaged_target['dir'] }}"
   when:
-    - run_php_extensions_disable_unmanaged
+    - run_php_extensions_disable_unmanaged | ansible.builtin.bool
 
 
 - name: "Config | Debian | Remove activation symlinks of unmanaged non-builtin extensions"
@@ -73,7 +73,7 @@
   loop_control:
     label: "{{ item['path'] }}"
   when:
-    - run_php_extensions_disable_unmanaged
+    - run_php_extensions_disable_unmanaged | ansible.builtin.bool
     - __run_php_link_extension not in run_php_extensions_enabled
     - __run_php_link_extension not in __run_php_extensions_builtin
   notify:

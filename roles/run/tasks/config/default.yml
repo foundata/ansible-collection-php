@@ -313,7 +313,7 @@
   register: "__run_php_fpm_pool_existing"
   when:
     - __run_php_fpm_enabled
-    - run_php_fpm_pools_delete_unmanaged
+    - run_php_fpm_pools_delete_unmanaged | ansible.builtin.bool
 
 
 - name: "Config | Default | Remove unmanaged PHP-FPM pool files (if any)"
@@ -334,7 +334,7 @@
     }}
   when:
     - __run_php_fpm_enabled
-    - run_php_fpm_pools_delete_unmanaged
+    - run_php_fpm_pools_delete_unmanaged | ansible.builtin.bool
   notify:
     - "run_php: validate configuration"
     - "run_php: reload php-fpm service"

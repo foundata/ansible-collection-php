@@ -649,8 +649,10 @@
   ansible.builtin.include_role:
     name: "foundata.php.run"
   vars:
-    run_php_extensions_disable_unmanaged: true
-    run_php_fpm_pools_delete_unmanaged: true
+    # Strings on purpose (as delivered by "-e var=true" command line
+    # extra-vars): the role has to coerce boolean arguments.
+    run_php_extensions_disable_unmanaged: "true"
+    run_php_fpm_pools_delete_unmanaged: "true"
 
 
 # The re-run notified the validate and reload handlers. Flush them now, while
