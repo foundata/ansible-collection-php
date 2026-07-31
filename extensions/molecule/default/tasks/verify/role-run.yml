@@ -603,7 +603,7 @@
     file_type: "link"
   register: __testing_strict_links_before
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
 
 - name: "Molecule | Verify | Strict ownership: plant a fake canonical extension INI (Debian-like)"
@@ -615,7 +615,7 @@
     group: "root"
     mode: "u=rw,g=r,o=r"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
 
 - name: "Molecule | Verify | Strict ownership: plant unmanaged activation symlinks (Debian-like)"
@@ -627,7 +627,7 @@
     - "{{ __run_php_config_ini_fpm_dir_path }}"
     - "{{ __run_php_config_ini_cli_dir_path }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
 
 - name: "Molecule | Verify | Strict ownership: plant an unmanaged pool file"
@@ -699,7 +699,7 @@
     file_type: "link"
   register: __testing_strict_links_after
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
 
 # The expected survivor set is computed, not assumed: exactly the symlinks of
@@ -741,7 +741,7 @@
         | ansible.builtin.sort
       }}
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
 
 # The canonical file in mods-available/ is deliberately not touched by the
@@ -751,7 +751,7 @@
     path: "{{ __run_php_config_mods_available_dir_path }}/faketest.ini"
     state: "absent"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
 
 ## Unfulfillable run_php_version pin (platforms shipping a single PHP series)
@@ -778,7 +778,7 @@
       An unfulfillable run_php_version pin falls back to the distribution stream
       '{{ __run_php_version_distribution_default }}'.
   when:
-    - ansible_facts['os_family'] == 'Suse'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'suse'
 
 
 ## EL9 php DNF module stream (pinned run_php_version)
@@ -796,7 +796,7 @@
 
 - name: "Molecule | Verify | Validate the EL9 php DNF module stream handling (integration)"
   when:
-    - ansible_facts['os_family'] == 'RedHat'
+    - (ansible_facts['os_family'] | ansible.builtin.lower) == 'redhat'
     - ansible_facts['distribution_major_version'] == '9'
   block:
 
