@@ -2,6 +2,20 @@
 
 This repository contains the `foundata.php` Ansible Collection.
 
+It provides resources to manage and use [PHP](https://www.php.net/), a widely-used scripting language especially suited for web development (FPM and CLI SAPIs).
+
+
+<div align="center" id="project-readme-header">
+<br>
+<br>
+
+**⭐ Found this useful? Support open-source and star this project:**
+
+[![GitHub repository](https://img.shields.io/github/stars/foundata/ansible-collection-php.svg)](https://github.com/foundata/ansible-collection-php)
+
+<br>
+</div>
+
 
 
 ## Table of contents<a id="toc"></a>
