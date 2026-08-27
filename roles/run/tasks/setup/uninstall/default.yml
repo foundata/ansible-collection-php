@@ -40,7 +40,7 @@
 
 - name: "Setup | Uninstall | Remove role-managed config files"
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ __run_php_removal_item }}"
     state: "absent"
   vars:
     # The role's own INI namespace, identified by filename.
@@ -68,7 +68,8 @@
       | ansible.builtin.unique
     }}
   loop_control:
-    label: "{{ item }}"
+    loop_var: "__run_php_removal_item"
+    label: "{{ __run_php_removal_item }}"
 
 
 - name: "Setup | Uninstall | Check if the main php-fpm.conf exists"

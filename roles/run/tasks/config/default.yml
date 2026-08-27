@@ -41,13 +41,13 @@
       {{
         __run_php_ini_render_targets
         + [{
-            'dir': __run_php_t['dir'],
-            'sapi': __run_php_t['sapi'],
+            'dir': __run_php_ini_target_item['dir'],
+            'sapi': __run_php_ini_target_item['sapi'],
             'scope': (
               (run_php_settings['shared'] | ansible.builtin.default({}))
               | ansible.builtin.combine(
-                  (run_php_settings[__run_php_t['sapi']] | ansible.builtin.default({}))
-                    if __run_php_t['sapi'] in ['fpm', 'cli'] else {},
+                  (run_php_settings[__run_php_ini_target_item['sapi']] | ansible.builtin.default({}))
+                    if __run_php_ini_target_item['sapi'] in ['fpm', 'cli'] else {},
                   recursive=true
                 )
             ),
@@ -55,39 +55,39 @@
       }}
   loop: "{{ __run_php_ini_targets }}"
   loop_control:
-    loop_var: "__run_php_t"
-    label: "{{ __run_php_t['dir'] }}"
+    loop_var: "__run_php_ini_target_item"
+    label: "{{ __run_php_ini_target_item['dir'] }}"
 
 
 - name: "Config | Default | Render shared/per-SAPI INI drop-in per target"
   ansible.builtin.template:
     src: "ini_dropin.ini.j2"
-    dest: "{{ __run_php_ini_render_target['dir'] }}/{{ __run_php_config_ini_dropin_filename }}"
+    dest: "{{ __run_php_ini_render_target_item['dir'] }}/{{ __run_php_config_ini_dropin_filename }}"
     owner: "{{ __run_php_config_file_owner }}"
     group: "{{ __run_php_config_file_group }}"
     mode: "{{ __run_php_config_file_mode }}"
   vars:
-    __run_php_render_scope: "{{ __run_php_ini_render_target['scope'] }}"
+    __run_php_render_scope: "{{ __run_php_ini_render_target_item['scope'] }}"
   when:
-    - (__run_php_ini_render_target['scope'] | ansible.builtin.length) > 0
+    - (__run_php_ini_render_target_item['scope'] | ansible.builtin.length) > 0
   loop: "{{ __run_php_ini_render_targets }}"
   loop_control:
-    loop_var: "__run_php_ini_render_target"
-    label: "{{ __run_php_ini_render_target['dir'] }}"
+    loop_var: "__run_php_ini_render_target_item"
+    label: "{{ __run_php_ini_render_target_item['dir'] }}"
   notify:
     - "run_php: reload php-fpm service"
 
 
 - name: "Config | Default | Remove shared/per-SAPI INI drop-in per target when scope is empty"
   ansible.builtin.file:
-    path: "{{ __run_php_ini_render_target['dir'] }}/{{ __run_php_config_ini_dropin_filename }}"
+    path: "{{ __run_php_ini_render_target_item['dir'] }}/{{ __run_php_config_ini_dropin_filename }}"
     state: "absent"
   when:
-    - (__run_php_ini_render_target['scope'] | ansible.builtin.length) == 0
+    - (__run_php_ini_render_target_item['scope'] | ansible.builtin.length) == 0
   loop: "{{ __run_php_ini_render_targets }}"
   loop_control:
-    loop_var: "__run_php_ini_render_target"
-    label: "{{ __run_php_ini_render_target['dir'] }}"
+    loop_var: "__run_php_ini_render_target_item"
+    label: "{{ __run_php_ini_render_target_item['dir'] }}"
   notify:
     - "run_php: reload php-fpm service"
 
@@ -110,18 +110,18 @@
       {{
         __run_php_ext_render_triples
         + [{
-            'dir': __run_php_pair[0]['dir'],
-            'sapi': __run_php_pair[0]['sapi'],
-            'extension': __run_php_pair[1],
+            'dir': __run_php_target_extension_item[0]['dir'],
+            'sapi': __run_php_target_extension_item[0]['sapi'],
+            'extension': __run_php_target_extension_item[1],
             'directives': (
               ((run_php_extension_settings['shared']
-                | ansible.builtin.default({}))[__run_php_pair[1]]
+                | ansible.builtin.default({}))[__run_php_target_extension_item[1]]
                 | ansible.builtin.default({}))
               | ansible.builtin.combine(
-                  ((run_php_extension_settings[__run_php_pair[0]['sapi']]
-                    | ansible.builtin.default({}))[__run_php_pair[1]]
+                  ((run_php_extension_settings[__run_php_target_extension_item[0]['sapi']]
+                    | ansible.builtin.default({}))[__run_php_target_extension_item[1]]
                     | ansible.builtin.default({}))
-                    if __run_php_pair[0]['sapi'] in ['fpm', 'cli'] else {},
+                    if __run_php_target_extension_item[0]['sapi'] in ['fpm', 'cli'] else {},
                   recursive=true
                 )
             ),
@@ -129,8 +129,8 @@
       }}
   loop: "{{ __run_php_ini_targets | ansible.builtin.product(run_php_extensions_enabled) | ansible.builtin.list }}"
   loop_control:
-    loop_var: "__run_php_pair"
-    label: "{{ __run_php_pair[0]['dir'] }} / {{ __run_php_pair[1] }}"
+    loop_var: "__run_php_target_extension_item"
+    label: "{{ __run_php_target_extension_item[0]['dir'] }} / {{ __run_php_target_extension_item[1] }}"
 
 
 - name: "Config | Default | Initialize managed per-extension INI paths accumulator"
@@ -143,39 +143,39 @@
     __run_php_ext_ini_managed_paths: >-
       {{
         __run_php_ext_ini_managed_paths
-        + [(__run_php_t['dir'] ~ '/' ~ (
+        + [(__run_php_ext_render_triple_item['dir'] ~ '/' ~ (
               __run_php_config_ini_extension_dropin_filename_format
-              | ansible.builtin.regex_replace('\{extension\}', __run_php_t['extension'])
+              | ansible.builtin.regex_replace('\{extension\}', __run_php_ext_render_triple_item['extension'])
             ))]
       }}
   when:
-    - (__run_php_t['directives'] | ansible.builtin.length) > 0
+    - (__run_php_ext_render_triple_item['directives'] | ansible.builtin.length) > 0
   loop: "{{ __run_php_ext_render_triples }}"
   loop_control:
-    loop_var: "__run_php_t"
-    label: "{{ __run_php_t['dir'] }} / {{ __run_php_t['extension'] }}"
+    loop_var: "__run_php_ext_render_triple_item"
+    label: "{{ __run_php_ext_render_triple_item['dir'] }} / {{ __run_php_ext_render_triple_item['extension'] }}"
 
 
 - name: "Config | Default | Render per-extension INI drop-ins"
   ansible.builtin.template:
     src: "extension_ini_dropin.ini.j2"
     dest: >-
-      {{ __run_php_ext_render_triple['dir'] }}/{{
+      {{ __run_php_ext_render_triple_item['dir'] }}/{{
         __run_php_config_ini_extension_dropin_filename_format
-        | ansible.builtin.regex_replace('\{extension\}', __run_php_ext_render_triple['extension'])
+        | ansible.builtin.regex_replace('\{extension\}', __run_php_ext_render_triple_item['extension'])
       }}
     owner: "{{ __run_php_config_file_owner }}"
     group: "{{ __run_php_config_file_group }}"
     mode: "{{ __run_php_config_file_mode }}"
   vars:
-    __run_php_render_extension: "{{ __run_php_ext_render_triple['extension'] }}"
-    __run_php_render_directives: "{{ __run_php_ext_render_triple['directives'] }}"
+    __run_php_render_extension: "{{ __run_php_ext_render_triple_item['extension'] }}"
+    __run_php_render_directives: "{{ __run_php_ext_render_triple_item['directives'] }}"
   when:
-    - (__run_php_ext_render_triple['directives'] | ansible.builtin.length) > 0
+    - (__run_php_ext_render_triple_item['directives'] | ansible.builtin.length) > 0
   loop: "{{ __run_php_ext_render_triples }}"
   loop_control:
-    loop_var: "__run_php_ext_render_triple"
-    label: "{{ __run_php_ext_render_triple['dir'] }} / {{ __run_php_ext_render_triple['extension'] }}"
+    loop_var: "__run_php_ext_render_triple_item"
+    label: "{{ __run_php_ext_render_triple_item['dir'] }} / {{ __run_php_ext_render_triple_item['extension'] }}"
   notify:
     - "run_php: reload php-fpm service"
 
@@ -188,7 +188,7 @@
 # files in the same directory are untouched (they don't match the pattern).
 - name: "Config | Default | Discover existing per-extension INI drop-ins per target"
   ansible.builtin.find:
-    paths: "{{ __run_php_ini_target['dir'] }}"
+    paths: "{{ __run_php_ini_target_item['dir'] }}"
     patterns: >-
       {{
         __run_php_config_ini_extension_dropin_filename_format
@@ -198,13 +198,13 @@
   register: "__run_php_ext_ini_existing"
   loop: "{{ __run_php_ini_targets }}"
   loop_control:
-    loop_var: "__run_php_ini_target"
-    label: "{{ __run_php_ini_target['dir'] }}"
+    loop_var: "__run_php_ini_target_item"
+    label: "{{ __run_php_ini_target_item['dir'] }}"
 
 
 - name: "Config | Default | Remove stale per-extension INI drop-ins"
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ __run_php_stale_ini_item }}"
     state: "absent"
   loop: >-
     {{
@@ -215,6 +215,8 @@
       | ansible.builtin.reject('ansible.builtin.in', __run_php_ext_ini_managed_paths)
       | ansible.builtin.list
     }}
+  loop_control:
+    loop_var: "__run_php_stale_ini_item"
   notify:
     - "run_php: reload php-fpm service"
 
@@ -318,7 +320,7 @@
 
 - name: "Config | Default | Remove unmanaged PHP-FPM pool files (if any)"
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ __run_php_stale_pool_item }}"
     state: "absent"
   loop: >-
     {{
@@ -332,6 +334,8 @@
         )
       | ansible.builtin.list
     }}
+  loop_control:
+    loop_var: "__run_php_stale_pool_item"
   when:
     - __run_php_fpm_enabled
     - run_php_fpm_pools_delete_unmanaged | ansible.builtin.bool

@@ -34,7 +34,7 @@
 
 - name: "Config | Debian | Discover existing extension activation symlinks per selected SAPI"
   ansible.builtin.find:
-    paths: "{{ __run_php_disable_unmanaged_target['dir'] }}"
+    paths: "{{ __run_php_disable_unmanaged_target_item['dir'] }}"
     patterns: '^[0-9]+-.+\.ini$'
     use_regex: true
     file_type: "link"
@@ -45,21 +45,21 @@
       + ([{'dir': __run_php_config_ini_cli_dir_path}] if __run_php_cli_enabled else [])
     }}
   loop_control:
-    loop_var: "__run_php_disable_unmanaged_target"
-    label: "{{ __run_php_disable_unmanaged_target['dir'] }}"
+    loop_var: "__run_php_disable_unmanaged_target_item"
+    label: "{{ __run_php_disable_unmanaged_target_item['dir'] }}"
   when:
     - run_php_extensions_disable_unmanaged | ansible.builtin.bool
 
 
 - name: "Config | Debian | Remove activation symlinks of unmanaged non-builtin extensions"
   ansible.builtin.file:
-    path: "{{ item['path'] }}"
+    path: "{{ __run_php_extension_symlink_item['path'] }}"
     state: "absent"
   vars:
     # Extract extension short name from a filename like `20-pgsql.ini`.
     __run_php_link_extension: >-
       {{
-        item['path']
+        __run_php_extension_symlink_item['path']
         | ansible.builtin.basename
         | ansible.builtin.regex_replace('^[0-9]+-(.+)\.ini$', '\1')
       }}
@@ -71,7 +71,8 @@
       | ansible.builtin.flatten
     }}
   loop_control:
-    label: "{{ item['path'] }}"
+    loop_var: "__run_php_extension_symlink_item"
+    label: "{{ __run_php_extension_symlink_item['path'] }}"
   when:
     - run_php_extensions_disable_unmanaged | ansible.builtin.bool
     - __run_php_link_extension not in run_php_extensions_enabled
