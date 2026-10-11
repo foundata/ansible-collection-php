@@ -7,6 +7,9 @@
 # platform on the role's support list. The openSUSE Leap 16.x repositories
 # ship a single PHP stream (8.4 in Leap 16.0), so versioning is not a concern
 # here.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 

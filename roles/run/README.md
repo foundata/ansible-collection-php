@@ -1,5 +1,10 @@
 # Ansible role: `foundata.php.run`
 
+<!--
+SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 The `foundata.php.run` Ansible role (part of the `foundata.php` Ansible collection).
 
 

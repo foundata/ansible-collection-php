@@ -5,6 +5,9 @@
 # shared-dir platforms (RHEL-like, SUSE-like) and would prevent this converge
 # from running on the full platform matrix. We will find a solution for this
 # laster (maye a dedicated scenario or two separate role calls).
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 # The shared Molecule converge playbook runs with "gather_facts: false", but
 # we need ansible_facts['os_family'] to select the platform-stock FPM

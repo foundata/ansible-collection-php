@@ -7,6 +7,9 @@
 # CentOS Stream) AND to Fedora — all of them have os_family "RedHat". Fedora
 # version defaults are added to the lookup table below so a separate
 # fedora.yml is not strictly required.
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 

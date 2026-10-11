@@ -7,6 +7,9 @@
 # The concrete distribution-default PHP version stream is set in the matching
 # per-version vars file (debian_12.yml, debian_13.yml, ubuntu_22.yml,
 # ubuntu_24.yml, ubuntu_26.yml).
+#
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
 
