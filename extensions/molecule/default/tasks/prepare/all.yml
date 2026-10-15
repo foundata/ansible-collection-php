@@ -1,3 +1,4 @@
+---
 # Tasks for the Molecule prepare stage: Add resources needed for later steps
 # (e.g. verify) on all driver-created instances.
 #
@@ -11,7 +12,6 @@
     owner: "root"
     group: "root"
     mode: "u=rwx,g=rx,o=rx" # 0755
-
 
 # The verify stage runs this script via the PHP CLI to dump the full runtime
 # state (loaded extensions, effective INI values, INI-file scan paths, ...)

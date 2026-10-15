@@ -1,3 +1,4 @@
+---
 # Execute the collection role "run" against all driver-created instances.
 #
 # Scope: cross-platform portable parameters only. The per-SAPI "fpm" / "cli"
@@ -22,7 +23,6 @@
     gather_subset:
       - "!min"
       - "distribution"
-
 
 - name: "Molecule | Converge | Set platform-specific FPM service user"
   ansible.builtin.set_fact:
@@ -169,7 +169,6 @@
       # Exercises the service handler at the end of the run.
       run_php_fpm_service_state: "enabled"
 
-
 - name: "Molecule | Converge | Store other data in __testing_state"
   ansible.builtin.include_tasks:
     file: "../tasks/state_update.yml"
@@ -178,7 +177,6 @@
       # Store the platform-stock FPM service user that we picked, so the pool-content
       # assertions match what was actually rendered.
       __testing_fpm_user: "{{ __testing_fpm_user }}"
-
 
 - name: "Molecule | Converge | Set run_php_* parameters as facts from __testing_state"
   ansible.builtin.set_fact:

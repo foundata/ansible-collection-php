@@ -1,3 +1,4 @@
+---
 # Check collection role "run" outcomes.
 #
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
@@ -8,7 +9,6 @@
     name: "foundata.php.run"
     tasks_from: "init"
     public: true
-
 
 ## Preparation
 
@@ -45,12 +45,11 @@
 - name: "Molecule | Verify | Check if shared INI drop-in exists per target"
   ansible.builtin.stat:
     path: "{{ __testing_target_dir }}/{{ __run_php_config_ini_dropin_filename }}"
-  register: "__testing_shared_dropin_stat"
   loop: "{{ __testing_ini_target_dirs }}"
   loop_control:
     loop_var: "__testing_target_dir"
 
-
+  register: "__testing_shared_dropin_stat"
 - name: "Molecule | Verify | Assert shared INI drop-in exists per target"
   ansible.builtin.assert:
     that:
@@ -65,12 +64,10 @@
   loop_control:
     label: "{{ item['__testing_target_dir'] }}"
 
-
 - name: "Molecule | Verify | Read shared INI drop-in content (first target as representative)"
   ansible.builtin.slurp:
     src: "{{ __testing_ini_target_dirs[0] }}/{{ __run_php_config_ini_dropin_filename }}"
   register: "__testing_shared_dropin_content"
-
 
 - name: "Molecule | Verify | Set shared INI drop-in content as fact"
   ansible.builtin.set_fact:
@@ -102,12 +99,11 @@
         __run_php_config_ini_extension_dropin_filename_format
         | ansible.builtin.regex_replace('\{extension\}', 'opcache')
       }}
-  register: "__testing_opcache_dropin_stat"
   loop: "{{ __testing_ini_target_dirs }}"
   loop_control:
     loop_var: "__testing_target_dir"
 
-
+  register: "__testing_opcache_dropin_stat"
 - name: "Molecule | Verify | Assert opcache extension INI drop-in exists per target"
   ansible.builtin.assert:
     that:
@@ -120,7 +116,6 @@
   loop_control:
     label: "{{ item['stat']['path'] }}"
 
-
 - name: "Molecule | Verify | Read opcache extension INI drop-in content (first target as representative)"
   ansible.builtin.slurp:
     src: >-
@@ -129,7 +124,6 @@
         | ansible.builtin.regex_replace('\{extension\}', 'opcache')
       }}
   register: "__testing_opcache_dropin_content"
-
 
 - name: "Molecule | Verify | Set opcache extension INI drop-in content as fact"
   ansible.builtin.set_fact:
@@ -157,7 +151,6 @@
   ansible.builtin.slurp:
     src: "{{ __run_php_config_fpm_main_file_path }}"
   register: "__testing_fpm_main_content"
-
 
 - name: "Molecule | Verify | Set main php-fpm.conf content as fact"
   ansible.builtin.set_fact:
@@ -211,7 +204,6 @@
     path: "/var/log/molecule-foundata-php-fpm.log"
   register: "__testing_fpm_error_log_stat"
 
-
 - name: "Molecule | Verify | Assert the redirected FPM error_log exists"
   ansible.builtin.assert:
     that:
@@ -229,7 +221,6 @@
   ansible.builtin.slurp:
     src: "/var/log/molecule-foundata-php-fpm.log"
   register: "__testing_fpm_error_log_content"
-
 
 - name: "Molecule | Verify | Assert the FPM error_log contains the master-startup notice"
   ansible.builtin.assert:
@@ -251,7 +242,6 @@
   ansible.builtin.stat:
     path: "{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf"
   register: "__testing_testpool_stat"
-
 
 - name: "Molecule | Verify | Assert testpool pool file exists"
   ansible.builtin.assert:
@@ -282,7 +272,6 @@
     path: "{{ __run_php_config_fpm_pool_dir_path }}/absent-example.conf"
   register: "__testing_absent_pool_stat"
 
-
 - name: "Molecule | Verify | Assert absent-example pool file does NOT exist"
   ansible.builtin.assert:
     that:
@@ -299,7 +288,6 @@
   ansible.builtin.slurp:
     src: "{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf"
   register: "__testing_testpool_content"
-
 
 - name: "Molecule | Verify | Set testpool pool file content as fact"
   ansible.builtin.set_fact:
@@ -351,11 +339,9 @@
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
 
-
 - name: "Molecule | Verify | Gather package facts"
   ansible.builtin.package_facts:
     manager: "auto"
-
 
 - name: "Molecule | Verify | Assert mainstream extension packages are installed"
   ansible.builtin.assert:
@@ -377,18 +363,18 @@
     argv:
       - "php"
       - "-m"
+  changed_when:
+    - false
+
   register: "__testing_php_modules"
-  changed_when: false
-
-
 - name: "Molecule | Verify | Assert mainstream extensions are loaded in CLI"
   ansible.builtin.assert:
     that:
-      - "'mbstring' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
-      - "'intl' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
-      - "'pgsql' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
-      - "'bcmath' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
-      - "'iconv' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('lower') | ansible.builtin.list)"
+      - "'mbstring' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('ansible.builtin.lower') | ansible.builtin.list)"
+      - "'intl' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('ansible.builtin.lower') | ansible.builtin.list)"
+      - "'pgsql' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('ansible.builtin.lower') | ansible.builtin.list)"
+      - "'bcmath' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('ansible.builtin.lower') | ansible.builtin.list)"
+      - "'iconv' in (__testing_php_modules['stdout_lines'] | ansible.builtin.map('ansible.builtin.lower') | ansible.builtin.list)"
     fail_msg: >-
       One or more expected extensions are missing from 'php -m':
       {{ __testing_php_modules['stdout_lines'] }}
@@ -406,10 +392,10 @@
       # Pipe-separated values for a single-line, easy-to-assert-against output:
       # <date.timezone>|<expose_php>|<memory_limit>
       - 'echo ini_get("date.timezone") . "|" . ini_get("expose_php") . "|" . ini_get("memory_limit");'
+  changed_when:
+    - false
+
   register: "__testing_php_ini"
-  changed_when: false
-
-
 - name: "Molecule | Verify | Assert CLI effective ini settings reflect run_php_settings"
   ansible.builtin.assert:
     that:
@@ -433,23 +419,11 @@
       - "php"
       - "-f"
       - "/var/lib/molecule-php/phpinfo.php"
-  register: "__testing_phpinfo"
   changed_when:
     - false
 
-
+  register: "__testing_phpinfo"
 - name: "Molecule | Verify | Assert phpinfo() output reflects the role-managed runtime state"
-  vars:
-    # phpinfo() runs via the PHP CLI binary, so it reports the CLI-side scan
-    # directory. On platforms with per-SAPI INI dirs (Debian-family) that is
-    # __run_php_config_ini_cli_dir_path; on shared-INI platforms (RHEL/Fedora,
-    # SUSE) it is __run_php_config_ini_shared_dir_path.
-    __testing_phpinfo_cli_ini_dir: >-
-      {{
-        __run_php_config_ini_cli_dir_path
-        if __run_php_has_per_sapi_ini
-        else __run_php_config_ini_shared_dir_path
-      }}
   ansible.builtin.assert:
     that:
       # The CLI scan directory is the one phpinfo() reports as "Scan this dir
@@ -479,6 +453,17 @@
 
 ## PHP-FPM service state
 
+  vars:
+    # phpinfo() runs via the PHP CLI binary, so it reports the CLI-side scan
+    # directory. On platforms with per-SAPI INI dirs (Debian-family) that is
+    # __run_php_config_ini_cli_dir_path; on shared-INI platforms (RHEL/Fedora,
+    # SUSE) it is __run_php_config_ini_shared_dir_path.
+    __testing_phpinfo_cli_ini_dir: >-
+      {{
+        __run_php_config_ini_cli_dir_path
+        if __run_php_has_per_sapi_ini
+        else __run_php_config_ini_shared_dir_path
+      }}
 - name: "Molecule | Verify | Gather service facts"
   ansible.builtin.service_facts:
 
@@ -503,7 +488,6 @@
     path: "/run/php-fpm-testpool.sock"
   register: "__testing_testpool_socket_stat"
 
-
 - name: "Molecule | Verify | Assert the testpool FPM listen socket exists and is a socket"
   ansible.builtin.assert:
     that:
@@ -524,7 +508,6 @@
 
 - name: "Molecule | Verify | Validate rejection of a malformed run_php_version"
   block:
-
     - name: "Molecule | Verify | Run init with a malformed run_php_version (must fail)"
       ansible.builtin.include_role:
         name: "foundata.php.run"
@@ -540,12 +523,10 @@
           names and the EL9 "dnf module enable" argument, so it must be rejected.
 
   rescue:
-
     - name: "Molecule | Verify | Assert the version format assert caused the failure"
       ansible.builtin.assert:
         that:
-          - ansible_failed_task['name'] is
-            ansible.builtin.search("run_php_version is 'default' or a MAJOR.MINOR version")
+          - ansible_failed_task['name'] is ansible.builtin.search("run_php_version is 'default' or a MAJOR.MINOR version")
         fail_msg: >-
           The failure was raised by '{{ ansible_failed_task['name'] }}', not by the
           run_php_version format assert.
@@ -555,7 +536,6 @@
 
 - name: "Molecule | Verify | Validate rejection of a path-escaping pool name"
   block:
-
     - name: "Molecule | Verify | Run init with a path-escaping pool name (must fail)"
       ansible.builtin.include_role:
         name: "foundata.php.run"
@@ -573,12 +553,10 @@
           must be rejected.
 
   rescue:
-
     - name: "Molecule | Verify | Assert the pool name assert caused the failure"
       ansible.builtin.assert:
         that:
-          - ansible_failed_task['name'] is
-            ansible.builtin.search('every key in run_php_fpm_pools is a safe pool name')
+          - ansible_failed_task['name'] is ansible.builtin.search('every key in run_php_fpm_pools is a safe pool name')
         fail_msg: >-
           The failure was raised by '{{ ansible_failed_task['name'] }}', not by the
           pool name assert.
@@ -601,14 +579,13 @@
     paths:
       - "{{ __run_php_config_ini_fpm_dir_path }}"
       - "{{ __run_php_config_ini_cli_dir_path }}"
-    patterns: '^[0-9]+-.+\.ini$'
+    patterns: "^[0-9]+-.+\\.ini$"
     use_regex: true
     file_type: "link"
-  register: __testing_strict_links_before
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
-
+  register: __testing_strict_links_before
 - name: "Molecule | Verify | Strict ownership: plant a fake canonical extension INI (Debian-like)"
   ansible.builtin.copy:
     dest: "{{ __run_php_config_mods_available_dir_path }}/faketest.ini"
@@ -616,23 +593,21 @@
       ; molecule strict-ownership canary (contains no directives on purpose)
     owner: "root"
     group: "root"
-    mode: "u=rw,g=r,o=r"
+    mode: "u=rw,g=r,o=r" # 0644
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
-
 
 - name: "Molecule | Verify | Strict ownership: plant unmanaged activation symlinks (Debian-like)"
   ansible.builtin.file:
     path: "{{ item }}/20-faketest.ini"
-    src: "{{ __run_php_config_mods_available_dir_path }}/faketest.ini"
     state: "link"
-  loop:
-    - "{{ __run_php_config_ini_fpm_dir_path }}"
-    - "{{ __run_php_config_ini_cli_dir_path }}"
+    src: "{{ __run_php_config_mods_available_dir_path }}/faketest.ini"
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
-
+  loop:
+    - "{{ __run_php_config_ini_fpm_dir_path }}"
+    - "{{ __run_php_config_ini_cli_dir_path }}"
 - name: "Molecule | Verify | Strict ownership: plant an unmanaged pool file"
   ansible.builtin.copy:
     dest: "{{ __run_php_config_fpm_pool_dir_path }}/unmanaged-extra.conf"
@@ -645,9 +620,7 @@
       pm.max_children = 1
     owner: "root"
     group: "root"
-    mode: "u=rw,g=,o="
-
-
+    mode: "u=rw,g=,o=" # 0600
 - name: "Molecule | Verify | Strict ownership: re-run the role with both cleanup toggles enabled"
   ansible.builtin.include_role:
     name: "foundata.php.run"
@@ -657,13 +630,11 @@
     run_php_extensions_disable_unmanaged: "true"
     run_php_fpm_pools_delete_unmanaged: "true"
 
-
 # The re-run notified the validate and reload handlers. Flush them now, while
 # PHP-FPM is still installed: the EL9 block below uninstalls it, and handlers
 # deferred to the end of the play would then run against a removed binary.
 - name: "Molecule | Verify | Strict ownership: flush the notified handlers"
   ansible.builtin.meta: "flush_handlers"
-
 
 - name: "Molecule | Verify | Strict ownership: list the pool files after the run"
   ansible.builtin.find:
@@ -673,7 +644,6 @@
       - "*.conf"
     file_type: "file"
   register: __testing_strict_pools_after
-
 
 - name: "Molecule | Verify | Strict ownership: assert only the declared pool file remains"
   ansible.builtin.assert:
@@ -697,21 +667,20 @@
     paths:
       - "{{ __run_php_config_ini_fpm_dir_path }}"
       - "{{ __run_php_config_ini_cli_dir_path }}"
-    patterns: '^[0-9]+-.+\.ini$'
+    patterns: "^[0-9]+-.+\\.ini$"
     use_regex: true
     file_type: "link"
-  register: __testing_strict_links_after
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
-
-# The expected survivor set is computed, not assumed: exactly the symlinks of
-# enabled and builtin extensions stay, everything else goes - the planted
-# fake ones AND legitimately unmanaged siblings that an enabled extension's
-# package happens to ship (e.g. php<ver>-pgsql ships pgsql and pdo_pgsql;
-# only the listed pgsql keeps its activation). Keeping the builtin set is the
-# regression guard for the keep-builtins behavior: removing those would
-# break the base PHP installation.
+  # The expected survivor set is computed, not assumed: exactly the symlinks of
+  # enabled and builtin extensions stay, everything else goes - the planted
+  # fake ones AND legitimately unmanaged siblings that an enabled extension's
+  # package happens to ship (e.g. php<ver>-pgsql ships pgsql and pdo_pgsql;
+  # only the listed pgsql keeps its activation). Keeping the builtin set is the
+  # regression guard for the keep-builtins behavior: removing those would
+  # break the base PHP installation.
+  register: __testing_strict_links_after
 - name: "Molecule | Verify | Strict ownership: assert exactly the unmanaged symlinks were removed (Debian-like)"
   ansible.builtin.assert:
     that:
@@ -746,7 +715,6 @@
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
 
-
 # The canonical file in mods-available/ is deliberately not touched by the
 # role (a later "phpenmod faketest" would re-activate it); remove the canary.
 - name: "Molecule | Verify | Strict ownership: remove the fake canonical extension INI (Debian-like)"
@@ -755,7 +723,6 @@
     state: "absent"
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
-
 
 ## Unfulfillable run_php_version pin (platforms shipping a single PHP series)
 #
@@ -766,8 +733,6 @@
 # lazy __run_php_version_effective is re-rendered with an overriding pin.
 
 - name: "Molecule | Verify | Assert an unfulfillable run_php_version pin falls back to the distribution stream"
-  vars:
-    run_php_version: "8.3"
   ansible.builtin.assert:
     that:
       - not __run_php_version_pin_supported
@@ -780,9 +745,10 @@
     success_msg: >-
       An unfulfillable run_php_version pin falls back to the distribution stream
       '{{ __run_php_version_distribution_default }}'.
+  vars:
+    run_php_version: "8.3"
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'suse'
-
 
 ## EL9 php DNF module stream (pinned run_php_version)
 #
@@ -802,18 +768,16 @@
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'redhat'
     - ansible_facts['distribution_major_version'] == '9'
   block:
-
     - name: "Molecule | Verify | Read the enabled php module stream after the converge"
       ansible.builtin.command:
         cmd: "dnf -q module list --enabled php"
-      register: "__testing_module_stream_baseline"
       changed_when:
         - false
       # a host without any enabled stream answers with rc 1 and an empty stdout
       failed_when:
         - false
 
-
+      register: "__testing_module_stream_baseline"
     - name: "Molecule | Verify | Assert a run without a pinned version leaves the module stream untouched"
       ansible.builtin.assert:
         that:
@@ -834,7 +798,6 @@
       changed_when:
         - true
 
-
     # Simulate a pool that was renamed since deployment: the marker-carrying
     # file exists on disk but is absent from run_php_fpm_pools, so only the
     # uninstall's marker sweep can find it.
@@ -849,10 +812,7 @@
         dest: "{{ __run_php_config_fpm_pool_dir_path }}/renamed-leftover.conf"
         owner: "root"
         group: "root"
-        mode: "u=rw,g=,o="
-
-
-    # An administrator's own pool file (no ownership marker): the sweep must
+        mode: "u=rw,g=,o=" # 0600; An administrator's own pool file (no ownership marker): the sweep must
     # leave it alone even though it lives in a managed directory. The content
     # mentions the marker as a substring on purpose: ownership requires the
     # exact marker line, a mere mention (e.g. quoted in a comment) must not
@@ -870,9 +830,7 @@
         dest: "{{ __run_php_config_fpm_pool_dir_path }}/admin-own.conf"
         owner: "root"
         group: "root"
-        mode: "u=rw,g=,o="
-
-
+        mode: "u=rw,g=,o=" # 0600
     - name: "Molecule | Verify | Uninstall the role without a pinned version"
       ansible.builtin.include_role:
         name: "foundata.php.run"
@@ -880,24 +838,19 @@
         run_php_state: "absent"
         run_php_version: "default"
 
-
     - name: "Molecule | Verify | Stat role-managed config files after the uninstall"
       ansible.builtin.stat:
         path: "{{ item }}"
-      register: "__testing_uninstall_leftover_stat"
       loop:
         - "{{ __run_php_config_fpm_pool_dir_path }}/renamed-leftover.conf"
         - "{{ __run_php_config_fpm_pool_dir_path }}/testpool.conf"
         - "{{ __run_php_config_ini_shared_dir_path }}/{{ __run_php_config_ini_dropin_filename }}"
 
-
+      register: "__testing_uninstall_leftover_stat"
     - name: "Molecule | Verify | Assert the uninstall removed the role's configuration"
       ansible.builtin.assert:
         that:
-          - __testing_uninstall_leftover_stat['results']
-            | ansible.builtin.selectattr('stat.exists')
-            | ansible.builtin.list
-            | ansible.builtin.length == 0
+          - __testing_uninstall_leftover_stat['results'] | ansible.builtin.selectattr('stat.exists') | ansible.builtin.list | ansible.builtin.length == 0
         fail_msg: >-
           Role-managed configuration survived run_php_state "absent":
           {{ __testing_uninstall_leftover_stat['results']
@@ -913,27 +866,24 @@
     - name: "Molecule | Verify | Check the administrator's pool file survived the uninstall"
       ansible.builtin.stat:
         path: "{{ __run_php_config_fpm_pool_dir_path }}/admin-own.conf"
-      register: "__testing_uninstall_admin_pool_stat"
       failed_when:
         - not __testing_uninstall_admin_pool_stat['stat']['exists']
 
-
+      register: "__testing_uninstall_admin_pool_stat"
     - name: "Molecule | Verify | Remove the administrator-owned test file"
       ansible.builtin.file:
         path: "{{ __run_php_config_fpm_pool_dir_path }}/admin-own.conf"
         state: "absent"
 
-
     - name: "Molecule | Verify | Read the enabled php module stream after the unpinned uninstall"
       ansible.builtin.command:
         cmd: "dnf -q module list --enabled php"
-      register: "__testing_module_stream_unpinned"
       changed_when:
         - false
       failed_when:
         - false
 
-
+      register: "__testing_module_stream_unpinned"
     - name: "Molecule | Verify | Assert the unpinned uninstall kept the operator's module stream"
       ansible.builtin.assert:
         that:
@@ -955,7 +905,6 @@
       changed_when:
         - true
 
-
     - name: "Molecule | Verify | Install a pinned PHP version stream (minimal set)"
       ansible.builtin.include_role:
         name: "foundata.php.run"
@@ -968,11 +917,9 @@
         run_php_extension_settings: {}
         run_php_fpm_service_state: "unmanaged"
 
-
     - name: "Molecule | Verify | Read the module stream and CLI package after the pinned install"
       ansible.builtin.command:
         cmd: "{{ item }}"
-      register: "__testing_module_stream_pinned"
       changed_when:
         - false
       failed_when:
@@ -981,7 +928,7 @@
         - "dnf -q module list --enabled php"
         - "rpm -q php-cli"
 
-
+      register: "__testing_module_stream_pinned"
     - name: "Molecule | Verify | Assert the pinned version enabled the matching module stream"
       ansible.builtin.assert:
         that:
@@ -1007,17 +954,15 @@
         run_php_sapis:
           - "cli"
 
-
     - name: "Molecule | Verify | Read the enabled php module stream after the pinned uninstall"
       ansible.builtin.command:
         cmd: "dnf -q module list --enabled php"
-      register: "__testing_module_stream_after_absent"
       changed_when:
         - false
       failed_when:
         - false
 
-
+      register: "__testing_module_stream_after_absent"
     - name: "Molecule | Verify | Assert the pinned uninstall reset the module stream"
       ansible.builtin.assert:
         that:
