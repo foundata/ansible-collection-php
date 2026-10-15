@@ -5,7 +5,8 @@ SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-The `foundata.php.run` Ansible role (part of the `foundata.php` Ansible collection).
+The `foundata.php.run` Ansible role (part of the `foundata.php` Ansible
+collection).
 
 
 
@@ -51,16 +52,38 @@ The `foundata.php.run` Ansible role (part of the `foundata.php` Ansible collecti
 
 Main features:
 
-* **Multi-SAPI support**: enable FPM, CLI, or both via the single `run_php_sapis` variable. mod_php is intentionally not supported (not thread-safe; unavailable on Red Hat 9+); classic CGI is intentionally not supported either (legacy, superseded by FPM).
-* **Platform-aware PHP version handling**: `run_php_version` accepts either a concrete stream (e.g. `"8.3"`) or `"default"`, which the role resolves to the distribution-default PHP version stream it knows for the current platform. The resolved version drives package names, INI directories and service names automatically.
-* **Extension management** via `run_php_extensions_enabled`: extensions are enabled by short name, the role installs the matching distribution sub-package and renders a per-extension INI drop-in. Unknown extension names fail the run early with the list of names known for the current platform.
-* **Per-SAPI INI scopes**: `run_php_settings['shared' | 'fpm' | 'cli']` and `run_php_extension_settings[...]` map directly to the per-SAPI INI directories on Debian-family platforms; on platforms with a shared INI directory (Red Hat, SUSE) the role rejects per-SAPI scopes at init time so misconfiguration surfaces before any side effects.
-* **FPM pool management** via `run_php_fpm_pool_defaults` + `run_php_fpm_pools`:
-  * Pool defaults are deep-merged with each pool's overrides, so common settings live in one place.
-  * Per-pool runtime INI shadowing via `php_admin_value` / `php_admin_flag` / `php_value` / `php_flag`, and environment variables via `env`.
-  * Pools can be marked `state: absent` to remove just one pool file, or `run_php_fpm_pools_delete_unmanaged: true` to enforce strict declarative ownership of the pool directory.
-* **FPM `[global]` directives** managed via `run_php_fpm_service_settings['global']` and appended at the end of `php-fpm.conf`. Platform-shipped `[global]` defaults are preserved unless explicitly overridden (PHP-FPM INI last-wins).
-* Designed for cross-platform compatibility, working seamlessly across Debian-family, Red Hat-family, and openSUSE.
+- **Multi-SAPI support**: enable FPM, CLI, or both via the single
+  `run_php_sapis` variable. mod_php is intentionally not supported (not
+  thread-safe; unavailable on Red Hat 9+); classic CGI is intentionally not
+  supported either (legacy, superseded by FPM).
+- **Platform-aware PHP version handling**: `run_php_version` accepts either a
+  concrete stream (e.g. `"8.3"`) or `"default"`, which the role resolves to the
+  distribution-default PHP version stream it knows for the current platform. The
+  resolved version drives package names, INI directories and service names
+  automatically.
+- **Extension management** via `run_php_extensions_enabled`: extensions are
+  enabled by short name, the role installs the matching distribution sub-package
+  and renders a per-extension INI drop-in. Unknown extension names fail the run
+  early with the list of names known for the current platform.
+- **Per-SAPI INI scopes**: `run_php_settings['shared' | 'fpm' | 'cli']` and
+  `run_php_extension_settings[...]` map directly to the per-SAPI INI directories
+  on Debian-family platforms; on platforms with a shared INI directory (Red Hat,
+  SUSE) the role rejects per-SAPI scopes at init time so misconfiguration
+  surfaces before any side effects.
+- **FPM pool management** via `run_php_fpm_pool_defaults` + `run_php_fpm_pools`:
+  - Pool defaults are deep-merged with each pool's overrides, so common settings
+    live in one place.
+  - Per-pool runtime INI shadowing via `php_admin_value` / `php_admin_flag` /
+    `php_value` / `php_flag`, and environment variables via `env`.
+  - Pools can be marked `state: absent` to remove just one pool file, or
+    `run_php_fpm_pools_delete_unmanaged: true` to enforce strict declarative
+    ownership of the pool directory.
+- **FPM `[global]` directives** managed via
+  `run_php_fpm_service_settings['global']` and appended at the end of
+  `php-fpm.conf`. Platform-shipped `[global]` defaults are preserved unless
+  explicitly overridden (PHP-FPM INI last-wins).
+- Designed for cross-platform compatibility, working seamlessly across
+  Debian-family, Red Hat-family, and openSUSE.
 
 
 
@@ -83,7 +106,8 @@ Installation with automatic upgrade:
         run_php_autoupgrade: true
 ```
 
-Installation pinned to a specific PHP version, with extensions, INI overrides and a dedicated FPM pool:
+Installation pinned to a specific PHP version, with extensions, INI overrides
+and a dedicated FPM pool:
 
 ```yaml
 ---
@@ -177,12 +201,16 @@ Uninstall:
 It might be useful and faster to only call parts of the role by using tags:
 
 - `run_php_setup`: Manage basic resources, such as packages or service users.
-- `run_php_config`: Manage settings, such as adapting or creating configuration files.
-- `run_php_service`: Manage services and daemons, such as running states and service boot configurations.
+- `run_php_config`: Manage settings, such as adapting or creating configuration
+  files.
+- `run_php_service`: Manage services and daemons, such as running states and
+  service boot configurations.
 
-There are also tags that are generally not intended to be called directly but are included for completeness and to cover edge cases:
+There are also tags that are generally not intended to be called directly but
+are included for completeness and to cover edge cases:
 
-- `run_php_always`, `always`: Tasks needed by the role itself for internal role setup and the Ansible environment.
+- `run_php_always`, `always`: Tasks needed by the role itself for internal role
+  setup and the Ansible environment.
 
 
 <!-- ANSIBLE DOCSMITH MAIN START -->
@@ -1026,7 +1054,8 @@ See `dependencies` in [`meta/main.yml`](./meta/main.yml).
 
 ## Compatibility<a id="compatibility"></a>
 
-See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and `__run_php_supported_platforms` in [`vars/main.yml`](./vars/main.yml).
+See `min_ansible_version` in [`meta/main.yml`](./meta/main.yml) and
+`__run_php_supported_platforms` in [`vars/main.yml`](./vars/main.yml).
 
 
 
