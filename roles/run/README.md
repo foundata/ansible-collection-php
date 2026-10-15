@@ -191,23 +191,25 @@ There are also tags that are generally not intended to be called directly but ar
 
 Main entry point for the foundata.php.run role
 
+Manage the PHP Hypertext Preprocessor (FPM; CLI SAPI)
+
 The following variables can be configured for this role:
 
-| Variable | Type | Required | Default | Description (abstract) |
-|----------|------|----------|---------|------------------------|
-| `run_php_state` | `str` | No | `"present"` | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_php_state) |
-| `run_php_autoupgrade` | `bool` | No | `false` | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
-| `run_php_fpm_service_state` | `str` | No | `"enabled"` | Defines the status of the PHP-FPM (FastCGI Process Manager) service. FPM is the PHP SAPI (Server API, see `run_php_sapis` for the full primer) intended to be reached from a web server such as Apache or NGINX over a FastCGI socket; it is the only PHP […](#variable-run_php_fpm_service_state) |
-| `run_php_version` | `str` | No | `"default"` | Selects which PHP version stream this role manages on the target host. Allowed values are `"default"` or a plain `MAJOR.MINOR` version such as `"8.3"` (no patch level or other decoration; the role fails during initialization otherwise).<br><br>The […](#variable-run_php_version) |
-| `run_php_sapis` | `list` | No | `['fpm', 'cli']` | List of PHP SAPIs the role should install and manage on the host. This role manages the whole PHP runtime, not one specific SAPI and this variable defines which SAPI(s) to address.<br><br>A PHP SAPI (Server API) is the interface layer through which […](#variable-run_php_sapis) |
-| `run_php_extensions_enabled` | `list` | No | `[]` | List of PHP extension short names to enable (and install if needed).<br><br>A "short name" is the name PHP itself uses in the `extension=...` INI directive (`extension=pgsql`, `extension=mbstring`, ...) and the same name distributions use as a suffix […](#variable-run_php_extensions_enabled) |
-| `run_php_extensions_disable_unmanaged` | `bool` | No | `false` | Controls whether the role disables extensions that are not declared in `run_php_extensions_enabled`.<br><br>This is intentionally best-effort. PHP has no portable, cross-platform extension activation registry. Built-in extensions and extensions […](#variable-run_php_extensions_disable_unmanaged) |
-| `run_php_settings` | `dict` | No | `{}` | PHP INI configuration as a scope-keyed nested dictionary. The role renders one or more drop-in `.ini` files into the appropriate SAPI INI directory on Debian-like systems, or into the single shared INI scan directory on shared-dir platforms […](#variable-run_php_settings) |
-| `run_php_extension_settings` | `dict` | No | `{}` | INI directives applied per extension, scoped the same way as `run_php_settings`. Top-level keys are configuration scopes (`shared`, `fpm`, `cli`); second-level keys are extension short names; third-level keys are flat INI directives for that […](#variable-run_php_extension_settings) |
-| `run_php_fpm_pool_defaults` | `dict` | No | `{}` | Defaults merged underneath every pool in `run_php_fpm_pools` at render time. Per-pool entries override defaults on any matching key (deep merge: pool's `php_admin_value.memory_limit` overrides the default's […](#variable-run_php_fpm_pool_defaults) |
-| `run_php_fpm_pools` | `dict` | No | `{}` | PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also the filename used in `pool.d/.conf` and the `[]` section header of the pool file. Pool names must therefore match `[A-Za-z0-9._-]+` (no path separators, no `..`, no brackets […](#variable-run_php_fpm_pools) |
-| `run_php_fpm_pools_delete_unmanaged` | `bool` | No | `false` | Controls whether the role removes pool files from `pool.d/` that are not declared in `run_php_fpm_pools`.<br><br>When `true`, any `*.conf` file in `pool.d/` whose stem does not match an entry in `run_php_fpm_pools` is deleted on every role run. This […](#variable-run_php_fpm_pools_delete_unmanaged) |
-| `run_php_fpm_service_settings` | `dict` | No | `{}` | PHP-FPM service-level settings, written into the `[global]` section of the distribution's main `php-fpm.conf` via `ansible.builtin.blockinfile`. The role does not overwrite the distribution file, only the managed block inside it.<br><br>Top-level […](#variable-run_php_fpm_service_settings) |
+|                Variable                |  Type  | Required |     Default      | Description (abstract) |
+| -------------------------------------- | ------ | -------- | ---------------- | ---------------------- |
+| `run_php_state`                        | `str`  | No       | `"present"`      | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_php_state) |
+| `run_php_autoupgrade`                  | `bool` | No       | `false`          | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
+| `run_php_fpm_service_state`            | `str`  | No       | `"enabled"`      | Defines the status of the PHP-FPM (FastCGI Process Manager) service. FPM is the PHP SAPI (Server API, see `run_php_sapis` for the full primer) intended to be reached from a web server such as Apache or NGINX over a FastCGI socket; it is the only PHP […](#variable-run_php_fpm_service_state) |
+| `run_php_version`                      | `str`  | No       | `"default"`      | Selects which PHP version stream this role manages on the target host. Allowed values are `"default"` or a plain `MAJOR.MINOR` version such as `"8.3"` (no patch level or other decoration; the role fails during initialization otherwise).<br><br>The […](#variable-run_php_version) |
+| `run_php_sapis`                        | `list` | No       | `['fpm', 'cli']` | List of PHP SAPIs the role should install and manage on the host. This role manages the whole PHP runtime, not one specific SAPI and this variable defines which SAPI(s) to address.<br><br>A PHP SAPI (Server API) is the interface layer through which […](#variable-run_php_sapis) |
+| `run_php_extensions_enabled`           | `list` | No       | `[]`             | List of PHP extension short names to enable (and install if needed).<br><br>A "short name" is the name PHP itself uses in the `extension=...` INI directive (`extension=pgsql`, `extension=mbstring`, ...) and the same name distributions use as a suffix […](#variable-run_php_extensions_enabled) |
+| `run_php_extensions_disable_unmanaged` | `bool` | No       | `false`          | Controls whether the role disables extensions that are not declared in `run_php_extensions_enabled`.<br><br>This is intentionally best-effort. PHP has no portable, cross-platform extension activation registry. Built-in extensions and extensions […](#variable-run_php_extensions_disable_unmanaged) |
+| `run_php_settings`                     | `dict` | No       | `{}`             | PHP INI configuration as a scope-keyed nested dictionary. The role renders one or more drop-in `.ini` files into the appropriate SAPI INI directory on Debian-like systems, or into the single shared INI scan directory on shared-dir platforms […](#variable-run_php_settings) |
+| `run_php_extension_settings`           | `dict` | No       | `{}`             | INI directives applied per extension, scoped the same way as `run_php_settings`. Top-level keys are configuration scopes (`shared`, `fpm`, `cli`); second-level keys are extension short names; third-level keys are flat INI directives for that […](#variable-run_php_extension_settings) |
+| `run_php_fpm_pool_defaults`            | `dict` | No       | `{}`             | Defaults merged underneath every pool in `run_php_fpm_pools` at render time. Per-pool entries override defaults on any matching key (deep merge: pool's `php_admin_value.memory_limit` overrides the default's […](#variable-run_php_fpm_pool_defaults) |
+| `run_php_fpm_pools`                    | `dict` | No       | `{}`             | PHP-FPM pools to manage. The dictionary is keyed by pool name, which is also the filename used in `pool.d/.conf` and the `[]` section header of the pool file. Pool names must therefore match `[A-Za-z0-9._-]+` (no path separators, no `..`, no brackets […](#variable-run_php_fpm_pools) |
+| `run_php_fpm_pools_delete_unmanaged`   | `bool` | No       | `false`          | Controls whether the role removes pool files from `pool.d/` that are not declared in `run_php_fpm_pools`.<br><br>When `true`, any `*.conf` file in `pool.d/` whose stem does not match an entry in `run_php_fpm_pools` is deleted on every role run. This […](#variable-run_php_fpm_pools_delete_unmanaged) |
+| `run_php_fpm_service_settings`         | `dict` | No       | `{}`             | PHP-FPM service-level settings, written into the `[global]` section of the distribution's main `php-fpm.conf` via `ansible.builtin.blockinfile`. The role does not overwrite the distribution file, only the managed block inside it.<br><br>Top-level […](#variable-run_php_fpm_service_settings) |
 
 ### `run_php_state`<a id="variable-run_php_state"></a>
 
@@ -355,7 +357,7 @@ the following SAPI values:
   The mainstream choice for serving web requests today. Only this SAPI has a
   service state to manage; see `run_php_fpm_service_state`.
 - `"cli"`: Command-line interpreter. Used to run PHP scripts directly from a
-  shell, in cron jobs, in deployment scripts, and by tools  like `composer`.
+  shell, in cron jobs, in deployment scripts, and by tools like `composer`.
   Has no daemon and no listener.
 
 The classic CGI SAPI (`php-cgi`) and `mod_php` (the in-process Apache SAPI)
@@ -417,16 +419,16 @@ Where to look a short name up, in order of authoritativeness:
   - RHEL / Fedora / AlmaLinux: `dnf list 'php-*'`, strip `php-`.
   - openSUSE Leap: `zypper search '^php<ver>-'`, strip `php<ver>-`.
 - The PHP manual and PECL index for discovery and documentation:
-  - https://www.php.net/manual/en/extensions.alphabetical.php lists bundled
+  - <https://www.php.net/manual/en/extensions.alphabetical.php> lists bundled
     extensions by their human-readable display title (for example
     "PostgreSQL", "Multibyte String", "MySQL Improved Extension"). The short
     name does NOT appear in the index itself; click through to the entry and
     read it from the URL (`book.<shortname>.php`, so `book.pgsql.php` for
     PostgreSQL) or from the `extension=<shortname>` examples on the entry's
     "Installation" subpage.
-  - https://www.php.net/manual/en/extensions.php gives a bundled-vs-PECL
+  - <https://www.php.net/manual/en/extensions.php> gives a bundled-vs-PECL
     overview and explains the difference.
-  - https://pecl.php.net/packages.php lists PECL extensions (`apcu`,
+  - <https://pecl.php.net/packages.php> lists PECL extensions (`apcu`,
     `imagick`, `redis`, `xdebug`, `memcached`, ...) which are not part of the
     bundled index.
 
@@ -454,8 +456,8 @@ if you need to verify what is actually loaded on a given host, run
 A non-exhaustive anchor list of short names you will commonly want,
 grouped by purpose:
 
-- Database: `pgsql`, `pdo_pgsql`, `mysqli`, `pdo_mysql`, `sqlite3`, `pdo_sqlite`,
-  `odbc`, `pdo_odbc`.
+- Database: `pgsql`, `pdo_pgsql`, `mysqli`, `pdo_mysql`, `sqlite3`,
+  `pdo_sqlite`, `odbc`, `pdo_odbc`.
 - Networking: `curl`, `ldap`, `soap`, `ftp`, `imap`, `sockets`, `snmp`.
 - Text and internationalisation: `mbstring`, `intl`, `iconv`, `gettext`.
 - Data formats: `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `dom`, `xsl`,
@@ -527,7 +529,7 @@ not edit those package-owned files to comment out `extension=` or
 unmanaged extensions.
 
 When set to `false` (which is the default), unmanaged extensions are left
-untouched. Use this if  want to prevent accidental unavailability of
+untouched. Use this if want to prevent accidental unavailability of
 extensions loaded by default on your platform or you manage additional
 extensions outside of this role.
 
@@ -738,7 +740,7 @@ up with its own copy of these directives inside its `pool.d/<name>.conf` file,
 so the values never enter the shared INI directory used by shared-dir
 platforms (RHEL-like, SUSE-like) and behave identically on every platform.
 
-The structure mirrors what PHP-FPM expects inside a pool block.  PHP-FPM has
+The structure mirrors what PHP-FPM expects inside a pool block. PHP-FPM has
 five associative-array bracket directivesm, the full set is supported here.
 Pick `_admin` variants when the value must not be overridable by application
 code at runtime (`ini_set()`):
@@ -759,7 +761,7 @@ code at runtime (`ini_set()`):
   `env[NAME] = value` lines.
 
 The list-shaped directive `access.suppress_path[]` (numerically indexed, not
-associative) is not modeled as a typed key; use a  pool's `extra_content` for
+associative) is not modeled as a typed key; use a pool's `extra_content` for
 it.
 
 The variable is honored only when `"fpm"` appears in `run_php_sapis`. Setting
@@ -1011,7 +1013,6 @@ expects (dots intact, no quoting required by YAML).
 
 - **Type**: `dict`
 - **Required**: No
-
 
 
 

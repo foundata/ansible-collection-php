@@ -13,6 +13,8 @@ argument_specs:
   # foundata.php/roles/run/tasks/main.yml entry point
   main:
     short_description: "Main entry point for the foundata.php.run role"
+    description: |
+      Manage the PHP Hypertext Preprocessor (FPM; CLI SAPI)
     options:
 
       run_php_state:
