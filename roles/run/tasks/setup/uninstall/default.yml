@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 ### Configuration cleanup. Runs BEFORE the package removal on purpose: the
 ### managed [global] block has to leave php-fpm.conf while the file still
 ### exists, otherwise RPM platforms would preserve the modified conffile as
@@ -20,7 +19,6 @@
     hidden: true
   register: __run_php_uninstall_find_result
 
-
 # Historical files (e.g. pools removed or renamed since deployment) cannot be
 # derived from the current variables, so the directories get swept for files
 # carrying the role's ownership marker. The name-based lists below still cover
@@ -33,14 +31,14 @@
         + (__run_php_uninstall_find_result['files']
            | ansible.builtin.map(attribute='path') | ansible.builtin.list)
       }}
-  register: __run_php_uninstall_owned_result
-  changed_when: false
-  failed_when:
-    - __run_php_uninstall_owned_result['rc'] not in [0, 1, 2]
   when:
     - (__run_php_uninstall_find_result['files'] | ansible.builtin.length) > 0
 
-
+  changed_when:
+    - false
+  failed_when:
+    - __run_php_uninstall_owned_result['rc'] not in [0, 1, 2]
+  register: __run_php_uninstall_owned_result
 - name: "Setup | Uninstall | Remove role-managed config files"
   ansible.builtin.file:
     path: "{{ __run_php_removal_item }}"
@@ -74,12 +72,10 @@
     loop_var: "__run_php_removal_item"
     label: "{{ __run_php_removal_item }}"
 
-
 - name: "Setup | Uninstall | Check if the main php-fpm.conf exists"
   ansible.builtin.stat:
     path: "{{ __run_php_config_fpm_main_file_path }}"
   register: __run_php_uninstall_fpm_main_stat
-
 
 # The pool-include line the role ensures is deliberately kept: it is stock
 # distribution content, not role-specific configuration.
@@ -90,7 +86,6 @@
     state: "absent"
   when:
     - __run_php_uninstall_fpm_main_stat['stat']['exists']
-
 
 ### Package removal.
 #
@@ -117,13 +112,14 @@
 - name: "Setup | Uninstall | Determine which package_facts helpers are not yet installed"
   ansible.builtin.command:
     argv: "{{ ['rpm', '-q', '--whatprovides'] + __run_php_uninstall_helper_packages }}"
-  register: __run_php_uninstall_helper_query
-  changed_when: false
-  failed_when: false
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
 
-
+  changed_when:
+    - false
+  failed_when:
+    - false
+  register: __run_php_uninstall_helper_query
 - name: "Setup | Uninstall | Remember the package_facts helpers this role adds"
   ansible.builtin.set_fact:
     __run_php_uninstall_helpers_added: >-
@@ -137,7 +133,6 @@
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
 
-
 - name: "Setup | Uninstall | Install python3-rpm on Red Hat and SUSE (and python3-libdnf5 on Fedora) for package_facts"
   ansible.builtin.package:
     name: "{{ __run_php_uninstall_helper_packages }}"
@@ -145,11 +140,9 @@
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) in ['redhat', 'suse']
 
-
 - name: "Setup | Uninstall | Gather package facts to determine which managed packages are actually installed"
   ansible.builtin.package_facts:
     manager: "auto"
-
 
 - name: "Setup | Uninstall | Remove packages (filtered to those actually installed)"
   ansible.builtin.package:
@@ -166,7 +159,6 @@
     - __run_php_packages_uninstall is ansible.builtin.defined
     - (__run_php_packages_uninstall_installed | ansible.builtin.length) > 0
 
-
 # The capabilities have to be resolved to the package names that ended up
 # providing them: removing by capability silently matches nothing in the
 # package module (openSUSE again, python3-rpm -> python313-rpm).
@@ -177,13 +169,13 @@
         ['rpm', '-q', '--whatprovides', '--qf', '%{NAME}\n']
         + __run_php_uninstall_helpers_added
       }}
-  register: __run_php_uninstall_helper_providers
-  changed_when: false
   when:
     - __run_php_uninstall_helpers_added is ansible.builtin.defined
     - (__run_php_uninstall_helpers_added | ansible.builtin.length) > 0
 
-
+  changed_when:
+    - false
+  register: __run_php_uninstall_helper_providers
 - name: "Setup | Uninstall | Remove the package_facts helpers this role installed"
   ansible.builtin.package:
     name: >-

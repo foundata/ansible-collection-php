@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 # Defined first on purpose: handlers run in definition order, so an invalid
 # configuration is caught before the service is asked to pick it up.
 #
@@ -19,17 +18,17 @@
       - "--test"
       - "--fpm-config"
       - "{{ __run_php_config_fpm_main_file_path }}"
-  register: __run_php_validation_result
+  when:
+    - __run_php_fpm_enabled
   changed_when:
     - false
   failed_when:
     - __run_php_validation_result is ansible.builtin.failed
-  when:
-    - __run_php_fpm_enabled
+  register: __run_php_validation_result
   listen:
+    - "run_php_validate_configuration"
+    # Migration alias; remove in 2.0.0.
     - "run_php: validate configuration"
-
-
 - name: "Handlers | PHP-FPM service restart"
   ansible.builtin.service:
     name: "{{ __run_php_fpm_service_name }}"
@@ -39,9 +38,9 @@
     - run_php_fpm_service_state in ['enabled', 'running']
     - (__run_php_fpm_service_name | ansible.builtin.length) > 0
   listen:
+    - "run_php_restart_php_fpm"
+    # Migration alias; remove in 2.0.0.
     - "run_php: restart php-fpm service"
-
-
 - name: "Handlers | PHP-FPM service reload"
   ansible.builtin.service:
     name: "{{ __run_php_fpm_service_name }}"
@@ -51,4 +50,6 @@
     - run_php_fpm_service_state in ['enabled', 'running']
     - (__run_php_fpm_service_name | ansible.builtin.length) > 0
   listen:
+    - "run_php_reload_php_fpm"
+    # Migration alias; remove in 2.0.0.
     - "run_php: reload php-fpm service"

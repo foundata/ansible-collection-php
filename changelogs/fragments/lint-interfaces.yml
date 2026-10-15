@@ -1,0 +1,14 @@
+---
+minor_changes:
+  - >-
+    Add role-prefixed handler topics and use them for internal notifications.
+    Retain the previous topics as migration aliases until version 2.0.0.
+  - >-
+    Add the handler topic run_php_validate_configuration
+    as the replacement for "run_php: validate configuration".
+  - >-
+    Add the handler topic run_php_restart_php_fpm
+    as the replacement for "run_php: restart php-fpm service".
+  - >-
+    Add the handler topic run_php_reload_php_fpm
+    as the replacement for "run_php: reload php-fpm service".

@@ -4,12 +4,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 - name: "Init | Include role meta data"
   ansible.builtin.include_vars:
     file: "../meta/main.yml"
     name: "__run_php_meta"
-
 
 - name: "Init | Check Ansible version requirement and fail if unmet"
   ansible.builtin.fail:
@@ -41,12 +39,9 @@
       or distribution facts are missing.
     verbosity: 1
   when:
-    - ansible_facts['os_family'] is not ansible.builtin.defined or
-      ansible_facts['distribution'] is not ansible.builtin.defined or
-      ansible_facts['distribution_version'] is not ansible.builtin.defined or
-      ansible_facts['distribution_major_version'] is not ansible.builtin.defined or
+    - ansible_facts['os_family'] is not ansible.builtin.defined or ansible_facts['distribution'] is not ansible.builtin.defined or
+      ansible_facts['distribution_version'] is not ansible.builtin.defined or ansible_facts['distribution_major_version'] is not ansible.builtin.defined or
       ((__run_php_supported_platforms | ansible.builtin.length) == 0)
-
 
 - name: "Init | Warn when platform is unsupported"
   ansible.builtin.fail:
@@ -72,7 +67,6 @@
     - (__run_php_supported_platforms | ansible.builtin.length) > 0
     - (__run_php_matched_versions | ansible.builtin.length) == 0
   ignore_errors: true # noqa: ignore-errors
-
 
 - name: "Init | Set platform-specific filename list (most to least specific; raw with possible duplicates)"
   ansible.builtin.set_fact:
@@ -138,9 +132,7 @@
   loop_control:
     loop_var: "__run_php_varsfile_item"
 
-
 ## php specific
-
 
 - name: "Init | Assert: distribution-default PHP version is known for this platform"
   ansible.builtin.assert:
@@ -155,15 +147,13 @@
   when:
     - run_php_version == 'default'
 
-
 # Hard failure (unlike the platform warning below): the value ends up in
 # package names and, on EL9, in the "dnf module enable php:<value>" argument,
 # so anything but a plain version keeps the run from doing what it says.
 - name: "Init | Assert: run_php_version is 'default' or a MAJOR.MINOR version"
   ansible.builtin.assert:
     that:
-      - run_php_version == 'default' or
-        (run_php_version is ansible.builtin.match('^[0-9]+\.[0-9]+$'))
+      - run_php_version == 'default' or (run_php_version is ansible.builtin.match('^[0-9]+\.[0-9]+$'))
     fail_msg: >-
       run_php_version is '{{ run_php_version }}', which is neither "default" nor a
       MAJOR.MINOR version such as "8.3". The value is used to build package names
@@ -212,7 +202,6 @@
     - not __run_php_version_pin_supported
     - run_php_version != __run_php_version_distribution_default
   ignore_errors: true # noqa: ignore-errors
-
 
 - name: "Init | Assert: every entry in run_php_extensions_enabled is lowercase ([a-z0-9_]+)"
   ansible.builtin.assert:
@@ -267,7 +256,6 @@
   when:
     - not __run_php_has_per_sapi_ini
 
-
 - name: "Init | Assert: every extension name in run_php_extension_settings is known"
   ansible.builtin.assert:
     that:
@@ -305,6 +293,7 @@
       The following FPM-only variables are non-empty but 'fpm' is not in run_php_sapis.
       They will be ignored:
       {{ __run_php_fpm_vars_set | ansible.builtin.join(', ') }}.
+    verbosity: 0
   vars:
     __run_php_fpm_vars_set: >-
       {{
@@ -316,13 +305,13 @@
     - not __run_php_fpm_enabled
     - (__run_php_fpm_vars_set | ansible.builtin.length) > 0
 
-
 - name: "Init | Notify: run_php_extension_settings references extensions not in run_php_extensions_enabled (they will be skipped)"
   ansible.builtin.debug:
     msg: >-
       The following extension setting entries reference extensions that are NOT in
       run_php_extensions_enabled and will be skipped on this run:
       {{ __run_php_ext_settings_referenced_extra | ansible.builtin.join(', ') }}.
+    verbosity: 0
   vars:
     __run_php_ext_settings_referenced: >-
       {{
@@ -339,7 +328,6 @@
       }}
   when:
     - (__run_php_ext_settings_referenced_extra | ansible.builtin.length) > 0
-
 
 - name: "Init | Show resolved PHP version stream and effective package prefix"
   ansible.builtin.debug:

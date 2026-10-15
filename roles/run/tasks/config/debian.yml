@@ -8,7 +8,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 ---
-
 # Best-effort disabling of unmanaged extension activation symlinks.
 #
 # On Debian-like platforms, distribution packages install the canonical extension
@@ -38,10 +37,12 @@
 - name: "Config | Debian | Discover existing extension activation symlinks per selected SAPI"
   ansible.builtin.find:
     paths: "{{ __run_php_disable_unmanaged_target_item['dir'] }}"
-    patterns: '^[0-9]+-.+\.ini$'
+    patterns: "^[0-9]+-.+\\.ini$"
     use_regex: true
     file_type: "link"
-  register: "__run_php_disable_unmanaged_existing"
+  when:
+    - run_php_extensions_disable_unmanaged | ansible.builtin.bool
+
   loop: >-
     {{
       ([{'dir': __run_php_config_ini_fpm_dir_path}] if __run_php_fpm_enabled else [])
@@ -50,10 +51,7 @@
   loop_control:
     loop_var: "__run_php_disable_unmanaged_target_item"
     label: "{{ __run_php_disable_unmanaged_target_item['dir'] }}"
-  when:
-    - run_php_extensions_disable_unmanaged | ansible.builtin.bool
-
-
+  register: "__run_php_disable_unmanaged_existing"
 - name: "Config | Debian | Remove activation symlinks of unmanaged non-builtin extensions"
   ansible.builtin.file:
     path: "{{ __run_php_extension_symlink_item['path'] }}"
@@ -66,6 +64,10 @@
         | ansible.builtin.basename
         | ansible.builtin.regex_replace('^[0-9]+-(.+)\.ini$', '\1')
       }}
+  when:
+    - run_php_extensions_disable_unmanaged | ansible.builtin.bool
+    - __run_php_link_extension not in run_php_extensions_enabled
+    - __run_php_link_extension not in __run_php_extensions_builtin
   loop: >-
     {{
       __run_php_disable_unmanaged_existing['results']
@@ -76,9 +78,5 @@
   loop_control:
     loop_var: "__run_php_extension_symlink_item"
     label: "{{ __run_php_extension_symlink_item['path'] }}"
-  when:
-    - run_php_extensions_disable_unmanaged | ansible.builtin.bool
-    - __run_php_link_extension not in run_php_extensions_enabled
-    - __run_php_link_extension not in __run_php_extensions_builtin
   notify:
-    - "run_php: reload php-fpm service"
+    - "run_php_reload_php_fpm"

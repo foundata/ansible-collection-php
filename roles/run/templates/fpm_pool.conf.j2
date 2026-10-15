@@ -3,7 +3,7 @@ SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
 SPDX-License-Identifier: GPL-3.0-or-later
 #}
 {%- from '_php_macros.j2' import render_fpm_pool -%}
-{{ __run_php_config_file_marker }}
-; {{ ansible_managed }}
+{{ tpl_config_file_marker }}
+; {{ tpl_managed }}
 
-{{ render_fpm_pool(__run_php_render_pool_name, __run_php_render_pool) }}
+{{ render_fpm_pool(tpl_render_pool_name, tpl_render_pool) }}
