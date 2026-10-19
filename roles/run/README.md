@@ -217,7 +217,7 @@ are included for completeness and to cover edge cases:
 
 ## Role variables<a id="variables"></a>
 
-Main entry point for the foundata.php.run role
+Main entry point for the foundata.php.run role.
 
 Manage the PHP Hypertext Preprocessor (FPM; CLI SAPI)
 
@@ -226,7 +226,7 @@ The following variables can be configured for this role:
 |                Variable                |  Type  | Required |     Default      | Description (abstract) |
 | -------------------------------------- | ------ | -------- | ---------------- | ---------------------- |
 | `run_php_state`                        | `str`  | No       | `"present"`      | Determines whether the managed resources should be `present` or `absent`.<br><br>`present` ensures that required components, such as software packages, are installed and configured.<br><br>`absent` reverts changes as much as possible, such as […](#variable-run_php_state) |
-| `run_php_autoupgrade`                  | `bool` | No       | `false`          | If set to `true`, all managed packages will be upgraded during each Ansible run (e.g., when the package provider detects a newer version than the currently installed one). |
+| `run_php_autoupgrade`                  | `bool` | No       | `false`          | If set to `true`, each Ansible run upgrades the managed packages to the newest version the package provider offers. |
 | `run_php_fpm_service_state`            | `str`  | No       | `"enabled"`      | Defines the status of the PHP-FPM (FastCGI Process Manager) service. FPM is the PHP SAPI (Server API, see `run_php_sapis` for the full primer) intended to be reached from a web server such as Apache or NGINX over a FastCGI socket; it is the only PHP […](#variable-run_php_fpm_service_state) |
 | `run_php_version`                      | `str`  | No       | `"default"`      | Selects which PHP version stream this role manages on the target host. Allowed values are `"default"` or a plain `MAJOR.MINOR` version such as `"8.3"` (no patch level or other decoration; the role fails during initialization otherwise).<br><br>The […](#variable-run_php_version) |
 | `run_php_sapis`                        | `list` | No       | `['fpm', 'cli']` | List of PHP SAPIs the role should install and manage on the host. This role manages the whole PHP runtime, not one specific SAPI and this variable defines which SAPI(s) to address.<br><br>A PHP SAPI (Server API) is the interface layer through which […](#variable-run_php_sapis) |
@@ -249,7 +249,7 @@ Determines whether the managed resources should be `present` or `absent`.
 installed and configured.
 
 `absent` reverts changes as much as possible, such as removing packages,
-deleting created users, stopping services, restoring modified settings, …
+deleting created users, stopping services and restoring modified settings.
 
 - **Type**: `str`
 - **Required**: No
@@ -262,9 +262,8 @@ deleting created users, stopping services, restoring modified settings, …
 
 [*⇑ Back to ToC ⇑*](#toc)
 
-If set to `true`, all managed packages will be upgraded during each Ansible
-run (e.g., when the package provider detects a newer version than the
-currently installed one).
+If set to `true`, each Ansible run upgrades the managed packages to the
+newest version the package provider offers.
 
 - **Type**: `bool`
 - **Required**: No
@@ -283,18 +282,17 @@ NGINX over a FastCGI socket; it is the only PHP SAPI that runs as a
 long-lived daemon and therefore the only one with a service state to
 manage.
 
-`enabled`: Service is running and will start automatically at boot.
+Possible values:
 
-`disabled`: Service is stopped and will not start automatically at boot.
-
-`running`: Service is running but will not start automatically at boot.
-This can be used to start a service on the first Ansible run without
-enabling it for boot.
-
-`unmanaged`: Ansible does not manage the service at all: both the
-running state and the boot (enablement) state are left exactly as they
-are. This is primarily useful when services are monitored and managed
-by systems other than Ansible.
+- `enabled`: Service is running and will start automatically at boot.
+- `disabled`: Service is stopped and will not start automatically at boot.
+- `running`: Service is running but will not start automatically at boot.
+  This can be used to start a service on the first Ansible run without
+  enabling it for boot.
+- `unmanaged`: Ansible does not manage the service at all: both the
+  running state and the boot (enablement) state are left exactly as they
+  are. This is primarily useful when services are monitored and managed
+  by systems other than Ansible.
 
 The variable is honored only when `"fpm"` appears in `run_php_sapis`.
 The CLI SAPI does not have a long-running daemon, so there is no service
