@@ -47,8 +47,8 @@ CLI SAPIs).
 The primary role in this collection: installs and maintains a PHP runtime,
 manages the CLI and PHP-FPM (FastCGI Process Manager) SAPIs, and configures INI
 directives, extensions and FPM pools from a single declarative set of variables.
-[Its `README.md`](./roles/run/README.md) covers configuration, usage examples,
-and more:
+[Its `README.md`](./roles/run/README.md) covers configuration and usage
+examples.
 
 <!-- ANSIBLE DOCSMITH TOC-FULL run START -->
 - [Ansible role: `foundata.php.run`](./roles/run/README.md#ansible-role-foundataphprun)
