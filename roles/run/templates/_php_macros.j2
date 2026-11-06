@@ -14,6 +14,7 @@ Render an INI scalar value with the conventions used by php.ini drop-ins:
   - Booleans render as On / Off (capitalised, no quotes, the values PHP INI
     recognises as native true / false).
   - Numbers render unquoted.
+  - Explicit expression mappings are validated and render unquoted.
   - All other values render as double-quoted strings.
 -#}
 {%- macro render_ini_value(value) -%}
@@ -23,8 +24,10 @@ On
 Off
 {%-   elif value is ansible.builtin.number -%}
 {{ value }}
+{%-   elif value is ansible.builtin.mapping -%}
+{{ value | foundata.php._ini_expression }}
 {%-   else -%}
-"{{ value }}"
+"{{ value | ansible.builtin.replace('\\', '\\\\') | ansible.builtin.replace('"', '\\"') }}"
 {%-   endif -%}
 {%- endmacro -%}
 

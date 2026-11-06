@@ -1,0 +1,8 @@
+---
+minor_changes:
+  - >-
+    run role - accept explicit, validated expression mappings in PHP INI settings
+    for core error-level constants, integers, bitwise operators and parentheses;
+    document literal strings and numeric fallbacks.
+bugfixes:
+  - "run role - escape quotes and backslashes in quoted PHP INI string values."

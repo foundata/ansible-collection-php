@@ -1,0 +1,47 @@
+---
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: "Molecule | Verify | Install PHP runtime probes"
+  ansible.builtin.copy:
+    src: "{{ lookup('ansible.builtin.env', 'MOLECULE_SCENARIO_DIRECTORY') }}/files/{{ item['src'] }}"
+    dest: "{{ item['dest'] }}"
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r" # 0644
+  loop:
+    - src: "runtime.php"
+      dest: "/var/tmp/foundata-php-runtime.php"
+    - src: "fpm_request.py"
+      dest: "/var/tmp/foundata-php-fpm-request.py"
+
+- name: "Molecule | Verify | Read effective settings in CLI and a live FPM worker"
+  ansible.builtin.command:
+    argv: "{{ item }}"
+  changed_when:
+    - false
+  loop:
+    - - "php"
+      - "/var/tmp/foundata-php-runtime.php"
+    - - "python3"
+      - "/var/tmp/foundata-php-fpm-request.py"
+  register: __testing_ini_runtime
+
+- name: "Molecule | Verify | Assert expressions and literal strings have the expected runtime values"
+  ansible.builtin.assert:
+    that:
+      - item['stderr'] | ansible.builtin.length == 0
+      - __testing_runtime['error_reporting'] == __testing_runtime['expected_error_reporting']
+      - __testing_runtime['user_agent'] == __testing_state['run_php_settings']['shared']['PHP']['user_agent']
+      - __testing_runtime['opcache.log_verbosity_level'] == '1'
+      - __testing_runtime['oauth'] == (ansible_facts['os_family'] == 'Debian')
+  vars:
+    __testing_runtime: "{{ item['stdout'] | ansible.builtin.from_json }}"
+  loop: "{{ __testing_ini_runtime['results'] }}"
+  loop_control:
+    label: "{{ item['item'][0] }}"
+
+- name: "Molecule | Verify | Assert the second request used FPM"
+  ansible.builtin.assert:
+    that:
+      - (__testing_ini_runtime['results'][1]['stdout'] | ansible.builtin.from_json)['sapi'] == 'fpm-fcgi'

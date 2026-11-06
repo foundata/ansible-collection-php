@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+DOCUMENTATION:
+  name: "_ini_expression"
+  short_description: "Validate an explicit PHP INI error-level expression"
+  version_added: "1.3.0"
+  author:
+    - "foundata GmbH (@foundata)"
+  description:
+    - "Internal helper for the run role's INI templates. Use the documented role settings interface."
+    - "Validates core error-level constants, decimal integers, operators and parentheses without evaluating the expression."
+  options:
+    _input:
+      description:
+        - "A mapping containing only the expression key."
+      type: "dict"
+      required: true
+      suboptions:
+        expression:
+          description:
+            - "An expression using supported E_* constants, decimal integers, C(|), C(&), C(^), C(~), C(!) and parentheses."
+          type: "str"
+          required: true
+  notes:
+    - "PHP on the target evaluates the expression and determines constant values and operator precedence."
+    - "Malformed or unsupported expressions raise an error; use a numeric role setting as a fallback."
+
+EXAMPLES: |
+  # Internal rendering used by the run role:
+  validated: "{{ {'expression': 'E_ALL & ~E_DEPRECATED'} | foundata.php._ini_expression }}"
+
+RETURN:
+  _value:
+    description:
+      - "Validated expression text without leading or trailing spaces/tabs."
+    type: "str"

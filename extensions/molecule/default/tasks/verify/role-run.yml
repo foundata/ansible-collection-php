@@ -83,6 +83,7 @@
       - "'expose_php = Off' in __testing_shared_dropin_decoded"
       - "'memory_limit = \"256M\"' in __testing_shared_dropin_decoded"
       - "'max_execution_time = 30' in __testing_shared_dropin_decoded"
+      - "'error_reporting = E_ALL & ~(E_DEPRECATED | E_USER_DEPRECATED)' in __testing_shared_dropin_decoded"
     fail_msg: >-
       The shared INI drop-in is missing expected directives.
       Actual content: {{ __testing_shared_dropin_decoded }}
@@ -138,6 +139,7 @@
       - "'opcache.memory_consumption = 256' in __testing_opcache_dropin_decoded"
       - "'opcache.max_accelerated_files = 20000' in __testing_opcache_dropin_decoded"
       - "'opcache.enable_cli = 0' in __testing_opcache_dropin_decoded"
+      - "'opcache.log_verbosity_level = E_ERROR' in __testing_opcache_dropin_decoded"
     fail_msg: >-
       The opcache extension INI drop-in is missing expected directives.
       Actual content: {{ __testing_opcache_dropin_decoded }}
@@ -571,6 +573,11 @@
           pool name assert.
         success_msg: >-
           A path-escaping pool name is rejected by the role's init.
+
+
+- name: "Molecule | Verify | Check effective INI expression and string settings"
+  ansible.builtin.include_tasks:
+    file: "php/ini-runtime.yml"
 
 
 ## Strict declarative ownership (run_php_extensions_disable_unmanaged and

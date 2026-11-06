@@ -368,6 +368,55 @@ argument_specs:
           `opcache`, ...). Values are flat dictionaries of INI directives for that
           section.
 
+          Directive values distinguish strings from expressions:
+
+          - Booleans render as `On` / `Off`; numbers render unquoted.
+          - Strings always render double-quoted, with quotes and backslashes escaped.
+            `"E_ALL"` is a literal string, **not** an error-reporting bitmask. PHP's
+            own `${...}` interpolation still applies inside quoted strings.
+          - A mapping containing only `expression` renders its string value unquoted
+            after validation. Use it for symbolic error-level expressions, for example
+            `error_reporting: {expression: "E_ALL & ~E_DEPRECATED"}`.
+
+          Supported expressions contain decimal integers, the binary operators `|`,
+          `&`, `^`, unary `~`, `!`, parentheses, spaces/tabs, and these core constants:
+          `E_ALL`, `E_ERROR`, `E_WARNING`, `E_PARSE`, `E_NOTICE`, `E_CORE_ERROR`,
+          `E_CORE_WARNING`, `E_COMPILE_ERROR`, `E_COMPILE_WARNING`, `E_USER_ERROR`,
+          `E_USER_WARNING`, `E_USER_NOTICE`, `E_STRICT`, `E_RECOVERABLE_ERROR`,
+          `E_DEPRECATED`, `E_USER_DEPRECATED`. Unknown names, malformed expressions,
+          extra mapping keys, comments and newlines fail rendering. Arithmetic,
+          function calls, extension constants and arbitrary PHP code are unsupported.
+
+          PHP evaluates the expression on the target; the role does not calculate or
+          pin constant values. INI binary operators have equal precedence and evaluate
+          left to right, unlike PHP source code; use parentheses to express grouping.
+          Constants can be deprecated or removed upstream, so verify the effective
+          setting on each supported PHP version. New constants require a collection
+          update. For unsupported syntax/constants, or when a symbolic value was
+          accidentally quoted, pass the computed YAML number instead. For example,
+          `error_reporting: -1` reports all errors, including future error levels;
+          `error_reporting: "-1"` is a string. Check with
+          `php -r 'var_dump(error_reporting());'` and through an FPM request when FPM
+          serves the application; checking the file or CLI alone misses pool overrides.
+
+          Example with an explicit expression and an ordinary string:
+
+          ```yaml
+          run_php_settings:
+            shared:
+              PHP:
+                error_reporting:
+                  expression: "E_ALL & ~(E_DEPRECATED | E_USER_DEPRECATED)"
+                memory_limit: "256M"
+          ```
+
+          This expression mapping also works in `run_php_extension_settings`.
+          FPM service/pool directives retain their existing unquoted rendering;
+          the expression mapping applies only to INI drop-ins, not to
+          `run_php_fpm_service_settings`, `run_php_fpm_pool_defaults` or
+          `run_php_fpm_pools`. Use numeric values for pool-level error-reporting
+          overrides.
+
           For configuration that is FPM-only and must stay portable across platforms,
           prefer `run_php_fpm_pool_defaults` or per-pool `php_admin_value` /
           `php_admin_flag` inside `run_php_fpm_pools`. Those end up inside the pool's
@@ -450,6 +499,9 @@ argument_specs:
           `run_php_settings`. Top-level keys are configuration scopes (`shared`, `fpm`,
           `cli`); second-level keys are extension short names; third-level keys are
           flat INI directives for that extension.
+
+          Values use the same boolean, numeric, quoted-string and explicit
+          `expression` mapping semantics as `run_php_settings`.
 
           The cross-platform rules are identical to `run_php_settings`:
 

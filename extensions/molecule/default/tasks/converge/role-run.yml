@@ -81,6 +81,9 @@
             expose_php: false
             memory_limit: "256M"
             max_execution_time: 30
+            error_reporting:
+              expression: "E_ALL & ~(E_DEPRECATED | E_USER_DEPRECATED)"
+            user_agent: 'E_ALL; "quoted" C:\php\'
 
       # Per-extension "shared" scope. Exercises the per-extension drop-in
       # render path (99-managed-opcache.ini) and the merge with
@@ -91,6 +94,8 @@
             opcache.memory_consumption: 256
             opcache.max_accelerated_files: 20000
             opcache.enable_cli: 0
+            opcache.log_verbosity_level:
+              expression: "E_ERROR"
 
       # Pool defaults applied across every pool. Exercises the deep-merge of
       # defaults with per-pool entries ("memory_limit" gets overridden by
