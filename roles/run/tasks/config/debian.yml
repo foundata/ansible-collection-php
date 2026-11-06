@@ -34,6 +34,66 @@
 # regular non-symlink files are also kept (only distribution-style activation
 # symlinks are touched).
 
+# phpquery/phpenmod preserve Debian's package-defined load priorities. Package
+# installation alone does not restore links removed by a previous strict run.
+- name: "Config | Debian | Discover installed extension INI files"
+  ansible.builtin.find:
+    paths: "{{ __run_php_config_mods_available_dir_path }}"
+    patterns: "*.ini"
+    file_type: "file"
+  register: __run_php_available_extensions
+
+- name: "Config | Debian | Check declared extension activation per selected SAPI"
+  ansible.builtin.command:
+    argv:
+      - "phpquery"
+      - "-v"
+      - "{{ __run_php_version_effective }}"
+      - "-s"
+      - "{{ __run_php_activation_item[1] }}"
+      - "-m"
+      - "{{ __run_php_activation_item[0] }}"
+  changed_when:
+    - false
+  failed_when:
+    # 1/32/33 mean disabled; 34 means an administrator changed the link target.
+    - __run_php_activation_status['rc'] not in [0, 1, 32, 33]
+  check_mode: false
+  loop: >-
+    {{
+      __run_php_available_extensions['files']
+      | ansible.builtin.map(attribute='path')
+      | ansible.builtin.map('ansible.builtin.basename')
+      | ansible.builtin.map('ansible.builtin.regex_replace', '\.ini$', '')
+      | ansible.builtin.select('ansible.builtin.in', run_php_extensions_enabled)
+      | ansible.builtin.product(run_php_sapis)
+      | ansible.builtin.list
+    }}
+  loop_control:
+    loop_var: "__run_php_activation_item"
+    label: "{{ __run_php_activation_item[0] }} / {{ __run_php_activation_item[1] }}"
+  register: __run_php_activation_status
+
+- name: "Config | Debian | Enable declared extensions per selected SAPI"
+  ansible.builtin.command:
+    argv:
+      - "phpenmod"
+      - "-v"
+      - "{{ __run_php_version_effective }}"
+      - "-s"
+      - "{{ __run_php_activation_result_item['__run_php_activation_item'][1] }}"
+      - "{{ __run_php_activation_result_item['__run_php_activation_item'][0] }}"
+  when:
+    - __run_php_activation_result_item['rc'] != 0
+  changed_when:
+    - true
+  loop: "{{ __run_php_activation_status['results'] }}"
+  loop_control:
+    loop_var: "__run_php_activation_result_item"
+    label: "{{ __run_php_activation_result_item['__run_php_activation_item'] | ansible.builtin.join(' / ') }}"
+  notify:
+    - "run_php_reload_php_fpm"
+
 - name: "Config | Debian | Discover existing extension activation symlinks per selected SAPI"
   ansible.builtin.find:
     paths: "{{ __run_php_disable_unmanaged_target_item['dir'] }}"

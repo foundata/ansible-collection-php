@@ -1,0 +1,5 @@
+---
+minor_changes:
+  - "run role - support the OAuth extension through the versioned Debian-family PHP package."
+bugfixes:
+  - "run role - reactivate declared Debian-family extensions after their activation symlinks have been removed."

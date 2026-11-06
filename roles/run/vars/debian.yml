@@ -134,6 +134,9 @@ __run_php_extensions_map_resources_defaults:
   mysqli:
     packages:
       - "{{ __run_php_package_prefix }}mysql"
+  oauth:
+    packages:
+      - "{{ __run_php_package_prefix }}oauth"
   odbc:
     packages:
       - "{{ __run_php_package_prefix }}odbc"

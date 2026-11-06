@@ -1,0 +1,24 @@
+---
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: "Molecule | Verify | Discover OAuth in CLI and FPM"
+  ansible.builtin.command:
+    argv:
+      - "{{ item }}"
+      - "-m"
+  changed_when:
+    - false
+  loop:
+    - "php"
+    - "{{ __run_php_fpm_exec_path }}"
+  register: __testing_oauth_modules
+
+- name: "Molecule | Verify | Assert OAuth activation in both SAPIs"
+  ansible.builtin.assert:
+    that:
+      - "('oauth' in (item['stdout_lines'] | ansible.builtin.map('ansible.builtin.lower') | ansible.builtin.list)) == __testing_oauth_expected"
+      - item['stderr'] | ansible.builtin.length == 0
+  loop: "{{ __testing_oauth_modules['results'] }}"
+  loop_control:
+    label: "{{ item['item'] }}"

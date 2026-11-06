@@ -382,6 +382,15 @@
       All expected extensions are loaded in CLI.
 
 
+- name: "Molecule | Verify | Check OAuth activation with default ownership"
+  ansible.builtin.include_tasks:
+    file: "php/oauth-runtime.yml"
+  vars:
+    __testing_oauth_expected: true
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+
 ## PHP CLI effective settings (verifies the shared INI drop-in is actually read)
 
 - name: "Molecule | Verify | Read effective CLI ini settings via php -r"
@@ -723,6 +732,12 @@
     state: "absent"
   when:
     - (ansible_facts['os_family'] | ansible.builtin.lower) == 'debian'
+
+- name: "Molecule | Verify | Exercise OAuth ownership transitions"
+  ansible.builtin.include_tasks:
+    file: "php/oauth.yml"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 ## Unfulfillable run_php_version pin (platforms shipping a single PHP series)
 #

@@ -1,0 +1,53 @@
+---
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: "Molecule | Verify | Check declared OAuth survives strict ownership"
+  ansible.builtin.include_tasks:
+    file: "oauth-runtime.yml"
+  vars:
+    __testing_oauth_expected: true
+
+- name: "Molecule | Verify | Leave OAuth unlisted with default ownership"
+  ansible.builtin.include_role:
+    name: "foundata.php.run"
+  vars:
+    run_php_extensions_enabled: "{{ __testing_state['run_php_extensions_enabled'] | ansible.builtin.difference(['oauth']) }}"
+    run_php_extensions_disable_unmanaged: false
+
+- name: "Molecule | Verify | Check unlisted OAuth remains enabled by default"
+  ansible.builtin.include_tasks:
+    file: "oauth-runtime.yml"
+  vars:
+    __testing_oauth_expected: true
+
+- name: "Molecule | Verify | Disable unlisted OAuth with strict ownership"
+  ansible.builtin.include_role:
+    name: "foundata.php.run"
+  vars:
+    run_php_extensions_enabled: "{{ __testing_state['run_php_extensions_enabled'] | ansible.builtin.difference(['oauth']) }}"
+    run_php_extensions_disable_unmanaged: true
+
+- name: "Molecule | Verify | Apply changed extension activation"
+  ansible.builtin.meta: "flush_handlers"
+
+- name: "Molecule | Verify | Check OAuth is disabled in both SAPIs"
+  ansible.builtin.include_tasks:
+    file: "oauth-runtime.yml"
+  vars:
+    __testing_oauth_expected: false
+
+- name: "Molecule | Verify | Restore declared OAuth with strict ownership"
+  ansible.builtin.include_role:
+    name: "foundata.php.run"
+  vars:
+    run_php_extensions_disable_unmanaged: true
+
+- name: "Molecule | Verify | Apply restored extension activation"
+  ansible.builtin.meta: "flush_handlers"
+
+- name: "Molecule | Verify | Check OAuth is reactivated in both SAPIs"
+  ansible.builtin.include_tasks:
+    file: "oauth-runtime.yml"
+  vars:
+    __testing_oauth_expected: true

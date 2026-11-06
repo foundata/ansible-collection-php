@@ -57,13 +57,11 @@
       # "pgsql" exercises the "pdo_pgsql" umbrella package on Debian and the
       # "php-pgsql" package on RHEL. "mbstring", "intl", "bcmath", "opcache"
       # are mainstream extensions present on every supported distribution.
-      run_php_extensions_enabled:
-        - "opcache"
-        - "mbstring"
-        - "pgsql"
-        - "intl"
-        - "bcmath"
-        - "iconv"
+      run_php_extensions_enabled: >-
+        {{
+          ['opcache', 'mbstring', 'pgsql', 'intl', 'bcmath', 'iconv']
+          + (['oauth'] if ansible_facts['os_family'] == 'Debian' else [])
+        }}
 
       # Leave the role's best-effort symlink cleanup off for the baseline
       # test - it has side effects on Debian-like that are easier to verify

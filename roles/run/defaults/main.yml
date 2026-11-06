@@ -183,7 +183,7 @@ run_php_sapis:
 # - `php -m` (CLI) or `php-fpm -m` (FPM) on any host that already has PHP
 #   installed. This is the most reliable source: it is the extension list as PHP
 #   itself sees it. Most names are lowercase, though a handful of historical
-#   built-ins are capitalized (`Core`, `PDO`, `Reflection`, `SPL`, `Phar`,
+#   names are capitalized (`Core`, `PDO`, `Reflection`, `SPL`, `Phar`, `OAuth`;
 #   please use lowercase then)
 # - The distribution's package search, with the platform-specific prefix
 #   stripped:
@@ -231,7 +231,8 @@ run_php_sapis:
 #
 # - Database: `pgsql`, `pdo_pgsql`, `mysqli`, `pdo_mysql`, `sqlite3`,
 #   `pdo_sqlite`, `odbc`, `pdo_odbc`.
-# - Networking: `curl`, `ldap`, `soap`, `ftp`, `imap`, `sockets`, `snmp`.
+# - Networking: `curl`, `ldap`, `soap`, `ftp`, `imap`, `sockets`, `snmp`,
+#   `oauth` (PECL, Debian-family packages).
 # - Text and internationalisation: `mbstring`, `intl`, `iconv`, `gettext`.
 # - Data formats: `xml`, `simplexml`, `xmlreader`, `xmlwriter`, `dom`, `xsl`,
 #   `zip`, `bz2`.
@@ -241,6 +242,10 @@ run_php_sapis:
 # - Debug and profiling: `xdebug` (PECL), `tideways` (PECL).
 # - Crypto and math: `bcmath`, `gmp`, `sodium`, `openssl`.
 # - System: `posix`, `pcntl`, `shmop`, `sysvshm`, `sysvsem`, `sysvmsg`.
+#
+# On Debian-family platforms, `oauth` installs `php<version>-oauth` (the
+# versioned package behind `php-oauth`). Declare it here to keep OAuth active
+# when `run_php_extensions_disable_unmanaged` is `true`.
 #
 # Example:
 #
