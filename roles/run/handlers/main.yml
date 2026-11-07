@@ -27,8 +27,6 @@
   register: __run_php_validation_result
   listen:
     - "run_php_validate_configuration"
-    # Migration alias; remove in 2.0.0.
-    - "run_php: validate configuration"
 - name: "Handlers | PHP-FPM service restart"
   ansible.builtin.service:
     name: "{{ __run_php_fpm_service_name }}"
@@ -39,8 +37,6 @@
     - (__run_php_fpm_service_name | ansible.builtin.length) > 0
   listen:
     - "run_php_restart_php_fpm"
-    # Migration alias; remove in 2.0.0.
-    - "run_php: restart php-fpm service"
 - name: "Handlers | PHP-FPM service reload"
   ansible.builtin.service:
     name: "{{ __run_php_fpm_service_name }}"
@@ -51,5 +47,3 @@
     - (__run_php_fpm_service_name | ansible.builtin.length) > 0
   listen:
     - "run_php_reload_php_fpm"
-    # Migration alias; remove in 2.0.0.
-    - "run_php: reload php-fpm service"
