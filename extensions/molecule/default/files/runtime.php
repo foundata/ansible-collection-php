@@ -6,6 +6,7 @@ header('Content-Type: application/json');
 echo json_encode([
     'sapi' => PHP_SAPI,
     'oauth' => extension_loaded('oauth'),
+    'oauth_class' => class_exists('OAuth', false),
     'error_reporting' => error_reporting(),
     'expected_error_reporting' => E_ALL & ~(E_DEPRECATED | E_USER_DEPRECATED),
     'user_agent' => ini_get('user_agent'),

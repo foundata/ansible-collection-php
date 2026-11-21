@@ -27,3 +27,14 @@
     owner: "root"
     group: "root"
     mode: "u=rw,g=r,o=r" # 0644
+
+- name: "Molecule | Prepare | Install CLI and FPM runtime probes"
+  ansible.builtin.copy:
+    src: "{{ lookup('ansible.builtin.env', 'MOLECULE_SCENARIO_DIRECTORY') }}/files/{{ item }}"
+    dest: "/var/lib/molecule-php/{{ item }}"
+    owner: "root"
+    group: "root"
+    mode: "u=rw,g=r,o=r" # 0644
+  loop:
+    - "runtime.php"
+    - "fpm_request.py"

@@ -28,7 +28,7 @@ def main():
     """Print the response body; fail on FastCGI or PHP errors."""
     parameters = {
         b"REQUEST_METHOD": b"GET",
-        b"SCRIPT_FILENAME": b"/var/tmp/foundata-php-runtime.php",
+        b"SCRIPT_FILENAME": b"/var/lib/molecule-php/runtime.php",
     }
     encoded = b"".join(
         bytes((len(key), len(value))) + key + value for key, value in parameters.items()

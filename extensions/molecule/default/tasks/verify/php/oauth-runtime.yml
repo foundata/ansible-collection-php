@@ -2,23 +2,31 @@
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-- name: "Molecule | Verify | Discover OAuth in CLI and FPM"
+- name: "Molecule | Verify | Check OAuth in CLI and the serving FPM pool"
   ansible.builtin.command:
-    argv:
-      - "{{ item }}"
-      - "-m"
+    argv: "{{ item['argv'] }}"
+  vars:
+    __testing_response: "{{ __testing_oauth_probe['stdout'] | ansible.builtin.from_json }}"
   changed_when:
     - false
   loop:
-    - "php"
-    - "{{ __run_php_fpm_exec_path }}"
-  register: __testing_oauth_modules
-
-- name: "Molecule | Verify | Assert OAuth activation in both SAPIs"
-  ansible.builtin.assert:
-    that:
-      - "('oauth' in (item['stdout_lines'] | ansible.builtin.map('ansible.builtin.lower') | ansible.builtin.list)) == __testing_oauth_expected"
-      - item['stderr'] | ansible.builtin.length == 0
-  loop: "{{ __testing_oauth_modules['results'] }}"
+    - sapi: "cli"
+      argv:
+        - "php"
+        - "/var/lib/molecule-php/runtime.php"
+    - sapi: "fpm-fcgi"
+      argv:
+        - "python3"
+        - "/var/lib/molecule-php/fpm_request.py"
+  # A graceful reload can finish after systemctl returns.
+  until:
+    - __testing_oauth_probe['rc'] == 0
+    - __testing_oauth_probe['stderr'] == ''
+    - __testing_response['sapi'] == item['sapi']
+    - __testing_response['oauth'] == __testing_oauth_expected
+    - __testing_response['oauth_class'] == __testing_oauth_expected
+  retries: 5
+  delay: 1
   loop_control:
-    label: "{{ item['item'] }}"
+    label: "{{ item['sapi'] }} (OAuth expected: {{ __testing_oauth_expected }})"
+  register: __testing_oauth_probe

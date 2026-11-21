@@ -2,19 +2,6 @@
 # SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-- name: "Molecule | Verify | Install PHP runtime probes"
-  ansible.builtin.copy:
-    src: "{{ lookup('ansible.builtin.env', 'MOLECULE_SCENARIO_DIRECTORY') }}/files/{{ item['src'] }}"
-    dest: "{{ item['dest'] }}"
-    owner: "root"
-    group: "root"
-    mode: "u=rw,g=r,o=r" # 0644
-  loop:
-    - src: "runtime.php"
-      dest: "/var/tmp/foundata-php-runtime.php"
-    - src: "fpm_request.py"
-      dest: "/var/tmp/foundata-php-fpm-request.py"
-
 - name: "Molecule | Verify | Read effective settings in CLI and a live FPM worker"
   ansible.builtin.command:
     argv: "{{ item }}"
@@ -22,9 +9,9 @@
     - false
   loop:
     - - "php"
-      - "/var/tmp/foundata-php-runtime.php"
+      - "/var/lib/molecule-php/runtime.php"
     - - "python3"
-      - "/var/tmp/foundata-php-fpm-request.py"
+      - "/var/lib/molecule-php/fpm_request.py"
   register: __testing_ini_runtime
 
 - name: "Molecule | Verify | Assert expressions and literal strings have the expected runtime values"
