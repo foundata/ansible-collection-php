@@ -1,6 +1,28 @@
 ---
 ancestor: null
 releases:
+  1.4.0:
+    changes:
+      bugfixes:
+        - run role - Reject non-boolean PHP-FPM pool flags during initialization and
+          name the offending settings. Use unquoted YAML booleans for ``php_flag``
+          and ``php_admin_flag`` in pool defaults and individual pools. Previously
+          a quoted ``"false"`` or ``"off"`` silently enabled the flag.
+      minor_changes:
+        - 'Remove the previous handler topics ahead of the announced version 2.0.0:
+          "run_php: validate configuration", "run_php: restart php-fpm service" and
+          "run_php: reload php-fpm service". Notify the role-prefixed topics instead.
+          We decided that this is a non-breaking change: the topics are role internals,
+          and their use by third parties is very unlikely.'
+    fragments:
+      - drop-handler-topic-aliases.yml
+      - fpm-pool-boolean-flags.yml
+    plugins:
+      filter:
+        - description: Identify invalid PHP\-FPM pool flags.
+          name: _invalid_fpm_pool_flags
+          namespace: null
+    release_date: '2026-11-21'
   1.3.0:
     changes:
       bugfixes:

@@ -4,6 +4,27 @@ foundata.php Ansible collection Release Notes
 
 .. contents:: Topics
 
+v1.4.0
+======
+
+Minor Changes
+-------------
+
+- Remove the previous handler topics ahead of the announced version 2.0.0: "run_php: validate configuration", "run_php: restart php-fpm service" and "run_php: reload php-fpm service". Notify the role-prefixed topics instead. We decided that this is a non-breaking change: the topics are role internals, and their use by third parties is very unlikely.
+
+Bugfixes
+--------
+
+- run role - Reject non-boolean PHP-FPM pool flags during initialization and name the offending settings. Use unquoted YAML booleans for ``php_flag`` and ``php_admin_flag`` in pool defaults and individual pools. Previously a quoted ``"false"`` or ``"off"`` silently enabled the flag.
+
+New Plugins
+-----------
+
+Filter
+~~~~~~
+
+- foundata.php._invalid_fpm_pool_flags - Identify invalid PHP\-FPM pool flags.
+
 v1.3.0
 ======
 
