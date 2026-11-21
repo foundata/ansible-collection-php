@@ -3,6 +3,10 @@
 
 """Exercise the expression boundary through Ansible and the shipped templates."""
 
+import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -146,3 +150,70 @@ def test_undefined_expression_propagates():
                 "{{ {'expression': missing_value} | foundata.php._ini_expression }}"
             )
         )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        *[
+            ({"expression": name}, f"get_defined_constants()['{name}']")
+            for name in sorted(_ini_expression.ERROR_CONSTANTS)
+        ],
+        ({"expression": "E_WARNING | E_ERROR"}, "3"),
+        ({"expression": "7 & 3"}, "3"),
+        ({"expression": "7 ^ 3"}, "4"),
+        ({"expression": "~0"}, "-1"),
+        ({"expression": "!0"}, "1"),
+        ({"expression": "!1"}, "0"),
+        # INI binary operators associate left to right, including mixed operators.
+        ({"expression": "1 | 2 & 2"}, "2"),
+        ({"expression": "1 | (2 & 2)"}, "3"),
+        (
+            {"expression": "E_ALL & ~(E_NOTICE | E_DEPRECATED)"},
+            "E_ALL & ~(E_NOTICE | E_DEPRECATED)",
+        ),
+        (-1, "-1"),
+    ],
+)
+def test_effective_error_reporting(tmp_path, value, expected):
+    """Start PHP with a rendered INI file and inspect the effective setting."""
+    ini = tmp_path / "php.ini"
+    ini.write_text(render({"PHP": {"error_reporting": value}}, "render_ini_scope"))
+    image = os.environ.get("PHP_INI_TEST_IMAGE")
+    if image:
+        command = [
+            "podman",
+            "run",
+            "--rm",
+            "--network=none",
+            "--pull=never",
+            "--env",
+            "PHP_INI_SCAN_DIR=",
+            "--volume",
+            f"{ini}:/test.ini:ro,Z",
+            image,
+            "php",
+            "-c",
+            "/test.ini",
+        ]
+    elif php := shutil.which("php"):
+        command = [php, "-c", str(ini)]
+    else:
+        pytest.skip("Requires PHP CLI or PHP_INI_TEST_IMAGE")
+
+    probe = (
+        f"echo json_encode([php_ini_loaded_file(), error_reporting(), ({expected})]);"
+    )
+    result = subprocess.run(
+        [*command, "-r", probe],
+        env={**os.environ, "PHP_INI_SCAN_DIR": ""},
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=60,
+    )
+    assert result.stderr == ""
+    loaded, actual, reference = json.loads(result.stdout)
+    assert loaded == command[-1]
+    assert isinstance(reference, int)
+    assert actual == reference

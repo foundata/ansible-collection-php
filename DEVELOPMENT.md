@@ -49,6 +49,20 @@ To check the exact archive retained for a release:
 uv run noxfile.py -s runtime-check -- --artifact /path/to/collection.tar.gz
 ```
 
+The expression tests start PHP with an INI file rendered by the installed role
+and check the effective error reporting level. They use the local PHP CLI when
+available. To test a specific PHP release in isolation, pull its CLI image and
+select it for the session:
+
+```sh
+podman pull docker.io/library/php:8.6-cli
+PHP_INI_TEST_IMAGE=docker.io/library/php:8.6-cli uv run noxfile.py -s runtime-check
+```
+
+Selecting an image requires that it be available locally. The test containers
+run without network access. If neither an image nor a local PHP CLI is
+available, pytest skips the PHP runtime cases. The template tests still run.
+
 Run Python helper checks from the collection root:
 
 ```sh
