@@ -1,0 +1,7 @@
+---
+bugfixes:
+  - >-
+    run role - Reject non-boolean PHP-FPM pool flags during initialization and
+    name the offending settings. Use unquoted YAML booleans for ``php_flag``
+    and ``php_admin_flag`` in pool defaults and individual pools. Previously
+    a quoted ``"false"`` or ``"off"`` silently enabled the flag.

@@ -575,6 +575,35 @@
           A path-escaping pool name is rejected by the role's init.
 
 
+- name: "Molecule | Verify | Reject invalid pool flags before configuration"
+  block:
+    - name: "Molecule | Verify | Initialize the role with invalid default and per-pool flags"
+      ansible.builtin.include_role:
+        name: "foundata.php.run"
+        tasks_from: "init"
+      vars:
+        run_php_fpm_pool_defaults:
+          php_admin_flag:
+            display_errors: "false"
+        run_php_fpm_pools:
+          testpool:
+            php_admin_flag:
+              display_errors: false
+            php_flag:
+              log_errors: 0
+
+    - name: "Molecule | Verify | Fail if init accepted invalid flags"
+      ansible.builtin.fail:
+        msg: "Expected pool flag validation to fail."
+
+  rescue:
+    - name: "Molecule | Verify | Assert init identified both invalid flag paths"
+      ansible.builtin.assert:
+        that:
+          - "'run_php_fpm_pool_defaults.php_admin_flag.display_errors' in ansible_failed_result['msg']"
+          - "'run_php_fpm_pools.testpool.php_flag.log_errors' in ansible_failed_result['msg']"
+
+
 - name: "Molecule | Verify | Check effective INI expression and string settings"
   ansible.builtin.include_tasks:
     file: "php/ini-runtime.yml"

@@ -517,6 +517,10 @@ run_php_extension_settings: {}
 # the values never enter the shared INI directory used by shared-dir platforms
 # (RHEL-like, SUSE-like) and behave identically on every platform.
 #
+# Use YAML booleans (`true` and `false`) for every `php_admin_flag` and
+# `php_flag` value. The role rejects quoted strings such as `"false"` and
+# numeric values during initialization, even if a pool overrides the default.
+#
 # The structure mirrors what PHP-FPM expects inside a pool block. PHP-FPM has
 # five associative-array bracket directivesm, the full set is supported here.
 # Pick `_admin` variants when the value must not be overridable by application
@@ -613,6 +617,9 @@ run_php_fpm_pool_defaults: {}
 # Each pool entry is a dictionary whose keys are PHP-FPM directive names
 # verbatim (with dots intact, since YAML accepts dots in unquoted keys). The
 # role's templates use bracket notation to read them (`pool['listen.owner']`).
+#
+# For present pools, `php_admin_flag` and `php_flag` values must be YAML
+# booleans (`true` or `false`). Quoted strings and numbers are rejected.
 #
 # Recognised per-pool fields:
 #

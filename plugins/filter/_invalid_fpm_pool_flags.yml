@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: foundata GmbH <https://foundata.com>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+DOCUMENTATION:
+  name: "_invalid_fpm_pool_flags"
+  short_description: "Identify invalid PHP-FPM pool flags"
+  version_added: "1.4.0"
+  author:
+    - "foundata GmbH (@foundata)"
+  description:
+    - "Internal helper for the run role. Checks boolean flag values in defaults and present pools before configuration."
+  options:
+    _input:
+      description:
+        - "PHP-FPM pool defaults."
+      type: "dict"
+      required: true
+    pools:
+      description:
+        - "PHP-FPM pool definitions keyed by pool name."
+      type: "dict"
+      required: true
+
+EXAMPLES: |
+  # An empty list indicates valid flags.
+  invalid: "{{ run_php_fpm_pool_defaults | foundata.php._invalid_fpm_pool_flags(run_php_fpm_pools) }}"
+
+RETURN:
+  _value:
+    description: "Paths to invalid flag settings."
+    type: "list"
+    elements: "str"

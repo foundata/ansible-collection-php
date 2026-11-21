@@ -183,6 +183,20 @@
       }}
 
 
+- name: "Init | Assert: PHP-FPM pool flags are YAML booleans"
+  ansible.builtin.assert:
+    that:
+      - __run_php_invalid_flags | ansible.builtin.length == 0
+    fail_msg: >-
+      php_admin_flag and php_flag must map flag names to YAML booleans (true or false).
+      Invalid entries: {{ __run_php_invalid_flags | ansible.builtin.join(', ') }}.
+  vars:
+    __run_php_invalid_flags: "{{ run_php_fpm_pool_defaults | foundata.php._invalid_fpm_pool_flags(run_php_fpm_pools) }}"
+  when:
+    - run_php_state == 'present'
+    - __run_php_fpm_enabled
+
+
 # Warning instead of a hard failure: mixed inventories may set one
 # run_php_version in group_vars for hosts of several platforms, and failing
 # would force "when:" gymnastics on the user. The run continues with the
